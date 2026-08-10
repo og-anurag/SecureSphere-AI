@@ -20,6 +20,7 @@ SUSPICIOUS_TLDS = [
     ".zip",
     ".country",
     ".gq",
+    ".tk",
 ]
 
 
@@ -61,6 +62,18 @@ def check_url(url: str):
     if hostname and len(hostname) > 30:
          score += 10
          reasons.append("Very long domain name")
+    
+    # Check for @ symbol
+    if "@" in url:
+        score += 20
+        reasons.append("URL contains @ symbol")  
+    # Check for too many subdomains
+    if hostname:
+        subdomain_count = hostname.count(".")
+    
+        if subdomain_count >= 3:
+            score += 10
+            reasons.append("URL contains many subdomains")  
     # Risk Level
     if score >= 60:
         risk = "High"
