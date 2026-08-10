@@ -6,6 +6,6 @@ router = APIRouter()
 
 @router.post("/scan-url", response_model=URLResponse)
 def scan_url(request: URLRequest):
-    result = check_url(request.url)
+    result = check_url(str(request.url))
     return result
     
