@@ -1,15 +1,10 @@
 from fastapi import APIRouter
-from pydantic import BaseModel
+from app.schemas.url_schema import URLRequest, URLResponse
 from app.utils.url_checker import check_url
 
 router = APIRouter()
 
-
-class URLRequest(BaseModel):
-    url: str
-
-
-@router.post("/scan-url")
+@router.post("/scan-url", response_model=URLResponse)
 def scan_url(request: URLRequest):
     result = check_url(request.url)
     return result
