@@ -10,3 +10,4 @@ class URLResponse(BaseModel):
     score: int
     risk: str
     reasons: list[str]
+    features: dict
