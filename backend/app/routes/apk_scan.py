@@ -5,40 +5,24 @@ from fastapi import (
     HTTPException,
     Depends
 )
-from fastapi.security import (
-    HTTPBearer,
-    HTTPAuthorizationCredentials
-)
 
 import zipfile
 from io import BytesIO
 
 from app.schemas.apk_schema import APKResponse
 from app.utils.apk_checker import check_apk
-from app.utils.auth import verify_token
+from app.utils.auth import get_current_user
+from app.models import User
 
 
 router = APIRouter()
-
-security = HTTPBearer()
 
 
 @router.post("/scan-apk", response_model=APKResponse)
 async def scan_apk(
     file: UploadFile = File(...),
-    credentials: HTTPAuthorizationCredentials = Depends(security)
+    current_user: User = Depends(get_current_user)
 ):
-
-    # Verify JWT token
-    token = credentials.credentials
-
-    payload = verify_token(token)
-
-    if payload is None:
-        raise HTTPException(
-            status_code=401,
-            detail="Invalid or expired token"
-        )
 
     # Check file extension
     if not file.filename.lower().endswith(".apk"):
