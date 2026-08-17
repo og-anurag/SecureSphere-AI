@@ -17,6 +17,8 @@ from app.models import User
 
 router = APIRouter()
 
+MAX_APK_SIZE = 50 * 1024 * 1024  # 50 MB
+
 
 @router.post("/scan-apk", response_model=APKResponse)
 async def scan_apk(
@@ -31,8 +33,16 @@ async def scan_apk(
             detail="Only APK files are allowed"
         )
 
-    # Read uploaded file
-    contents = await file.read()
+    # Read at most 50 MB + 1 byte
+    contents = await file.read(MAX_APK_SIZE + 1)
+
+    # Check file size
+    if len(contents) > MAX_APK_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail="APK file is too large. Maximum size is 50 MB."
+        )
+
     file_size = len(contents)
 
     # Validate APK ZIP structure
