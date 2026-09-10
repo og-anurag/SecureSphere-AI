@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# SQLite database
+*.db
+*.sqlite
+*.sqlite3
+
+# Local APK testing
+apk_test/
+test.apk
+test.txt
+test_valid.apk
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+.idea/
