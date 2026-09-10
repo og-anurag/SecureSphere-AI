@@ -1,0 +1,14 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+langgraph>=0.2.34
+langchain>=0.3
+langchain-openai>=0.2
+python-dotenv>=1.0
+requests>=2.32
+pydantic>=2.9
+tensorflow
+scikit-learn
+numpy
+pandas
+pymongo
+beautifulsoup4
