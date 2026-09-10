@@ -9,9 +9,13 @@ from fastapi import (
 import zipfile
 from io import BytesIO
 
+from sqlalchemy.orm import Session
+
 from app.schemas.apk_schema import APKResponse
 from app.utils.apk_checker import check_apk
+from app.utils.risk_engine import save_scan
 from app.utils.auth import get_current_user
+from app.database import get_db
 from app.models import User
 
 
@@ -23,7 +27,8 @@ MAX_APK_SIZE = 50 * 1024 * 1024  # 50 MB
 @router.post("/scan-apk", response_model=APKResponse)
 async def scan_apk(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
 
     # Check file extension
@@ -63,6 +68,11 @@ async def scan_apk(
 
     # Analyze APK
     result = check_apk(contents)
+
+    save_scan(
+        db, current_user.id, "apk", file.filename,
+        result["risk"], result["score"], result["reasons"]
+    )
 
     return {
         "filename": file.filename,
