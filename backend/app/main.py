@@ -1,15 +1,31 @@
 from fastapi import FastAPI
-from app.routes import url_scan, email_scan, apk_scan, auth
+from fastapi.middleware.cors import CORSMiddleware
 
+from app.database import Base, engine
+from app.routes import url_scan, email_scan, apk_scan, payment_scan, qr_scan, auth, history, home
+
+# Create tables on startup (SQLite dev DB - swap for Alembic migrations in production)
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI(
     title="SecureSphere AI API",
-    description="AI-powered cybersecurity API for URL, email, and APK threat analysis.",
+    description="AI-powered cybersecurity API for URL, email, APK, QR, and payment threat analysis.",
     version="1.0.0"
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+app.include_router(home.router)
 app.include_router(url_scan.router)
 app.include_router(email_scan.router)
 app.include_router(apk_scan.router)
+app.include_router(payment_scan.router)
+app.include_router(qr_scan.router)
 app.include_router(auth.router)
+app.include_router(history.router)
