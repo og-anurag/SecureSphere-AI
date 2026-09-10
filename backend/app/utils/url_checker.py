@@ -1,4 +1,39 @@
+import re
 from urllib.parse import urlparse
+
+
+KNOWN_BRANDS = [
+    "paypal", "google", "microsoft", "amazon", "sbi", "hdfc",
+    "icici", "netflix", "facebook", "instagram", "apple", "whatsapp",
+]
+
+
+def _levenshtein(a: str, b: str) -> int:
+    if len(a) < len(b):
+        return _levenshtein(b, a)
+    if len(b) == 0:
+        return len(a)
+    prev_row = range(len(b) + 1)
+    for i, ca in enumerate(a):
+        cur_row = [i + 1]
+        for j, cb in enumerate(b):
+            cur_row.append(min(prev_row[j + 1] + 1, cur_row[j] + 1, prev_row[j] + (ca != cb)))
+        prev_row = cur_row
+    return prev_row[-1]
+
+
+def _looks_like_typosquat(domain: str) -> str | None:
+    """Returns the brand name it resembles, or None. Checks the registrable
+    label and any hyphen/dot-separated tokens within it against known brands."""
+    domain_core = domain.split(".")[0].lower()
+    tokens = {domain_core, *re.split(r"[-.]", domain_core)}
+    for token in tokens:
+        if len(token) <= 3:
+            continue
+        for brand in KNOWN_BRANDS:
+            if token != brand and _levenshtein(token, brand) <= 2:
+                return brand
+    return None
 
 
 SUSPICIOUS_KEYWORDS = [
@@ -35,6 +70,7 @@ def check_url(url: str):
     "has_at_symbol": False,
     "has_many_subdomains": False,
     "has_long_domain": False,
+    "is_typosquat": False,
 }
 
     parsed = urlparse(url)
@@ -90,6 +126,14 @@ def check_url(url: str):
             features["has_many_subdomains"] = True
             score += 10
             reasons.append("URL contains many subdomains") 
+    # Check typosquatting against known brands
+    if hostname:
+        brand = _looks_like_typosquat(hostname)
+        if brand:
+            features["is_typosquat"] = True
+            score += 25
+            reasons.append(f"Domain closely resembles the brand '{brand}' (possible typosquat)")
+
     # Risk Level
     if score >= 60:
         risk = "High"
