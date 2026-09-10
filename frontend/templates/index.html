@@ -663,9 +663,22 @@
 
     </div>
 
-    <div class="tabs" id="tabs"></div>
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div class="tabs" id="tabs"></div>
+      {% if email %}
+      <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-faint);white-space:nowrap;">
+        {{ email }} &middot; <a href="/logout" style="color:var(--text-faint);">Log out</a>
+      </div>
+      {% endif %}
+    </div>
 
   </div>
+
+  {% if error %}
+  <div style="background:var(--danger-dim);border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:12px 16px;margin-bottom:20px;font-size:13px;">
+    {{ error }}
+  </div>
+  {% endif %}
 
 
   <!-- 1. Submit -->
@@ -714,36 +727,41 @@
 
     <div class="card">
 
-      <h2>Paste a link, email text, or UPI ID</h2>
+      <form method="POST" action="/submit" enctype="multipart/form-data">
 
-      <textarea
-        placeholder="e.g. http://amaz0n-rewards.win/claim or paste the full email text"
-      ></textarea>
+        <h2>Paste a link, email text, or UPI ID</h2>
 
-
-      <div class="dropzone">
-
-        <i class="ti ti-upload"></i>
-
-        Or drop an APK / QR code image here
-
-      </div>
+        <textarea
+          name="text_input"
+          placeholder="e.g. http://amaz0n-rewards.win/claim, a UPI ID like name@okaxis, or paste the full email text"
+        ></textarea>
 
 
-      <button
-        class="btn btn-primary"
-        style="width:auto;margin-top:18px;"
-        onclick="goTo('analysis')"
-      >
+        <label class="dropzone" style="display:block;cursor:pointer;">
+          <i class="ti ti-upload"></i>
+          <span id="fileLabel">Or click to attach an APK / QR code image</span>
+          <input type="file" name="file" accept=".apk,image/png,image/jpeg,image/webp,image/bmp"
+                 style="display:none;"
+                 onchange="document.getElementById('fileLabel').textContent = this.files[0] ? this.files[0].name : 'Or click to attach an APK / QR code image';">
+        </label>
 
-        <i
-          class="ti ti-scan"
-          style="margin-right:6px;"
-        ></i>
 
-        Run analysis
+        <button
+          type="submit"
+          class="btn btn-primary"
+          style="width:auto;margin-top:18px;"
+        >
 
-      </button>
+          <i
+            class="ti ti-scan"
+            style="margin-right:6px;"
+          ></i>
+
+          Run analysis
+
+        </button>
+
+      </form>
 
     </div>
 
@@ -931,134 +949,86 @@
     </p>
 
 
+    {% if report %}
+    {% set risk_class = "high" if report.risk == "High" else ("med" if report.risk == "Medium" else "low") %}
+    {% set risk_color = "var(--danger)" if report.risk == "High" else ("var(--warn)" if report.risk == "Medium" else "var(--signal)") %}
     <div class="grid-2">
 
-
       <!-- Risk Card -->
-
       <div class="card">
-
         <div class="report-top">
-
-          <div class="score-ring">
-
+          <div class="score-ring" style="background:conic-gradient({{ risk_color }} 0% {{ report.score }}%, var(--border) {{ report.score }}% 100%);">
             <div class="score-ring-inner">
-
-              <div class="score-num">
-                78
+              <div class="score-num" style="color:{{ risk_color }};">
+                {{ report.score }}
               </div>
-
               <div class="score-label">
-                confidence
+                risk score
               </div>
-
             </div>
-
           </div>
-
 
           <div>
-
-            <div class="badge">
-
+            <div class="badge" style="background:transparent;color:{{ risk_color }};border-color:{{ risk_color }};">
               <i class="ti ti-alert-triangle"></i>
-
-              High threat level
-
+              {{ report.risk }} threat level
             </div>
-
-            <div
-              style="font-size:13px;color:var(--text-dim);"
-            >
-              amaz0n-rewards.win
+            <div style="font-size:13px;color:var(--text-dim);">
+              {{ report.url or report.upi_id or report.decoded_content or report.filename or (report._input_type|capitalize) }}
             </div>
-
           </div>
-
         </div>
 
-
-        <h2>
-          Why it's flagged
-        </h2>
-
+        <h2>Why it's flagged</h2>
 
         <ul class="reason-list">
-
+          {% for reason in report.reasons %}
           <li>
-
             <i class="ti ti-alert-circle"></i>
-
-            Domain registered 4 days ago, mimics a known brand name
-
+            {{ reason }}
           </li>
-
-
+          {% else %}
           <li>
-
-            <i class="ti ti-alert-circle"></i>
-
-            No valid SSL certificate on the payment page
-
+            <i class="ti ti-circle-check" style="color:var(--signal);"></i>
+            No risk indicators found.
           </li>
-
-
-          <li>
-
-            <i class="ti ti-alert-circle"></i>
-
-            Matches a known phishing kit template
-
-          </li>
-
+          {% endfor %}
         </ul>
 
-
         <div class="action-box">
-
           <b>Recommended action:</b>
-
-          Do not enter any details.
-          Block and report this link.
-
+          {% if report.risk == "High" %}
+            Do not enter any details, click links, or make payments. Block and report this.
+          {% elif report.risk == "Medium" %}
+            Some risk indicators found - verify the source independently before continuing.
+          {% else %}
+            No significant threat detected. Proceed with normal caution.
+          {% endif %}
         </div>
-
       </div>
 
-
       <!-- Source Card -->
-
       <div class="card">
-
-        <h2>
-          Where this came from
-        </h2>
-
-        <p
-          style="
-            font-size:13px;
-            color:var(--text-dim);
-            line-height:1.7;
-          "
-        >
-          This link was flagged as part of a wider pattern
-          involving an email and a payment request.
-          See the full chain to understand how it connects.
+        <h2>Was this part of a pattern?</h2>
+        <p style="font-size:13px;color:var(--text-dim);line-height:1.7;">
+          Every check you run is remembered. If a link, email, app,
+          and payment request all trace back to the same account,
+          Commander AI flags it as a coordinated campaign.
         </p>
 
-
-        <button
-          class="btn btn-ghost"
-          style="margin-top:14px;"
-          onclick="goTo('correlation')"
-        >
-          See correlation →
+        <button class="btn btn-ghost" style="margin-top:14px;" onclick="location.href='/dashboard'">
+          See history &amp; correlation →
         </button>
-
       </div>
 
     </div>
-
+    {% else %}
+    <div class="card">
+      <p style="font-size:13px;color:var(--text-dim);">
+        Run a check from the Submit tab to see a report here.
+      </p>
+    </div>
+    {% endif %}
   </section>
 
 
@@ -1066,140 +1036,59 @@
 
   <section class="screen" data-screen="correlation">
 
-    <div class="eyebrow">
-      Context
-    </div>
+    <div class="eyebrow">Context</div>
 
-    <h1>
-      This isn't one event — it's a chain
-    </h1>
-
+    {% if history and history.campaign_flagged %}
+    <h1>This isn't one event — it's a chain</h1>
     <p class="lede">
-      Commander AI connected four separate signals
-      into a single coordinated attack.
+      Recent activity on your account spans {{ history['items']|length }} recorded checks,
+      and Commander AI connected multiple risky signals into a likely coordinated attack.
     </p>
 
-
     <div class="card">
-
       <div class="chain">
-
-
-        <!-- Email -->
-
+        {% for item in history['items'] %}
+        {% if item.risk in ["Medium", "High"] %}
         <div class="chain-item">
-
-          <div class="chain-line"></div>
-
+          {% if not loop.last %}<div class="chain-line"></div>{% endif %}
           <div class="chain-dot">
-            <i class="ti ti-mail"></i>
+            <i class="ti ti-{{ 'mail' if item.input_type == 'email' else ('world' if item.input_type == 'url' else ('android' if item.input_type == 'apk' else ('qrcode' if item.input_type == 'qr' else 'credit-card'))) }}"></i>
           </div>
-
           <div>
-
-            <div class="chain-title">
-              Scam email received
-            </div>
-
-            <div class="chain-desc">
-              Claimed a prize from "Amazon Rewards"
-            </div>
-
+            <div class="chain-title">{{ item.input_type|capitalize }} — {{ item.risk }} risk</div>
+            <div class="chain-desc">{{ item.target }}</div>
           </div>
-
         </div>
-
-
-        <!-- Website -->
-
-        <div class="chain-item">
-
-          <div class="chain-line"></div>
-
-          <div class="chain-dot">
-            <i class="ti ti-world"></i>
-          </div>
-
-          <div>
-
-            <div class="chain-title">
-              Led to a fake website
-            </div>
-
-            <div class="chain-desc">
-              amaz0n-rewards.win — 4 days old
-            </div>
-
-          </div>
-
-        </div>
-
-
-        <!-- APK -->
-
-        <div class="chain-item">
-
-          <div class="chain-line"></div>
-
-          <div class="chain-dot">
-            <i class="ti ti-android"></i>
-          </div>
-
-          <div>
-
-            <div class="chain-title">
-              Prompted an APK download
-            </div>
-
-            <div class="chain-desc">
-              Unverified app requesting SMS access
-            </div>
-
-          </div>
-
-        </div>
-
-
-        <!-- Payment -->
-
-        <div class="chain-item">
-
-          <div class="chain-dot">
-            <i class="ti ti-credit-card"></i>
-          </div>
-
-          <div>
-
-            <div class="chain-title">
-              Requested a payment
-            </div>
-
-            <div class="chain-desc">
-              UPI request for a "delivery fee"
-            </div>
-
-          </div>
-
-        </div>
-
+        {% endif %}
+        {% endfor %}
       </div>
-
 
       <div class="verdict">
-
-        <div class="eyebrow">
-          Verdict
-        </div>
-
-        <p>
-          This is one coordinated phishing campaign,
-          not four unrelated events. The email, site,
-          app, and payment request all trace back to the same source.
-        </p>
-
+        <div class="eyebrow">Verdict</div>
+        <p>{{ history.campaign_message }}</p>
       </div>
-
     </div>
+
+    {% elif history %}
+    <h1>No coordinated pattern detected — yet</h1>
+    <p class="lede">
+      Commander AI correlates your risky checks across categories (email, links, apps,
+      payments). Nothing risky enough has repeated across categories to flag a campaign.
+    </p>
+    <div class="card">
+      <p style="font-size:13px;color:var(--text-dim);">
+        Run more checks from the Submit tab — if 2 or more different categories come back
+        Medium/High risk, they'll show up here as a connected chain.
+      </p>
+    </div>
+
+    {% else %}
+    <h1>Nothing to correlate yet</h1>
+    <p class="lede">Run a few checks first, then come back here.</p>
+    <div class="card">
+      <button class="btn btn-ghost" onclick="location.href='/dashboard'">Load correlation view →</button>
+    </div>
+    {% endif %}
 
   </section>
 
@@ -1208,243 +1097,65 @@
 
   <section class="screen" data-screen="dashboard">
 
-    <div class="eyebrow">
-      Overview
-    </div>
+    <div class="eyebrow">Overview</div>
+    <h1>Your security dashboard</h1>
+    <p class="lede">Everything checked so far, at a glance.</p>
 
-    <h1>
-      Your security dashboard
-    </h1>
-
-    <p class="lede">
-      Everything checked so far, at a glance.
-    </p>
-
-
+    {% if history %}
     <div class="stat-row">
-
       <div class="stat">
-
-        <div
-          class="stat-num"
-          style="color:var(--signal);"
-        >
-          42
-        </div>
-
-        <div class="stat-label">
-          Checks this month
-        </div>
-
+        <div class="stat-num" style="color:var(--signal);">{{ history.total_scans }}</div>
+        <div class="stat-label">Checks recorded</div>
       </div>
-
-
       <div class="stat">
-
-        <div
-          class="stat-num"
-          style="color:var(--danger);"
-        >
-          6
-        </div>
-
-        <div class="stat-label">
-          High-risk flags
-        </div>
-
+        <div class="stat-num" style="color:var(--danger);">{{ history.high_risk_count }}</div>
+        <div class="stat-label">High-risk flags</div>
       </div>
-
-
       <div class="stat">
-
-        <div
-          class="stat-num"
-          style="color:var(--warn);"
-        >
-          3
-        </div>
-
-        <div class="stat-label">
-          Correlated campaigns
-        </div>
-
+        <div class="stat-num" style="color:var(--warn);">{{ '1' if history.campaign_flagged else '0' }}</div>
+        <div class="stat-label">Correlated campaigns</div>
       </div>
-
     </div>
-
 
     <div class="card">
-
-      <h2>
-        Recent checks
-      </h2>
-
+      <h2>Recent checks</h2>
 
       <table>
-
         <thead>
-
           <tr>
             <th>Item</th>
             <th>Type</th>
             <th>Result</th>
             <th>Date</th>
           </tr>
-
         </thead>
-
-
         <tbody>
-
+          {% for item in history['items'] %}
           <tr>
-
+            <td>{{ item.target }}</td>
+            <td>{{ item.input_type|capitalize }}</td>
             <td>
-              amaz0n-rewards.win
-            </td>
-
-            <td>
-              Website
-            </td>
-
-            <td>
-
-              <span class="status-pill high">
-
+              <span class="status-pill {{ 'high' if item.risk == 'High' else ('med' if item.risk == 'Medium' else 'low') }}">
                 <i class="ti ti-point-filled"></i>
-
-                High risk
-
+                {{ item.risk }} risk
               </span>
-
             </td>
-
-            <td>
-              Today
-            </td>
-
+            <td>{{ item.created_at.split('T')[0] if item.created_at is string else item.created_at }}</td>
           </tr>
-
-
+          {% else %}
           <tr>
-
-            <td>
-              Delivery update.apk
-            </td>
-
-            <td>
-              APK file
-            </td>
-
-            <td>
-
-              <span class="status-pill high">
-
-                <i class="ti ti-point-filled"></i>
-
-                High risk
-
-              </span>
-
-            </td>
-
-            <td>
-              Today
-            </td>
-
+            <td colspan="4" style="color:var(--text-faint);">No checks recorded yet.</td>
           </tr>
-
-
-          <tr>
-
-            <td>
-              hr-update@company.co
-            </td>
-
-            <td>
-              Email
-            </td>
-
-            <td>
-
-              <span class="status-pill med">
-
-                <i class="ti ti-point-filled"></i>
-
-                Medium risk
-
-              </span>
-
-            </td>
-
-            <td>
-              Yesterday
-            </td>
-
-          </tr>
-
-
-          <tr>
-
-            <td>
-              upi://merchant@ok
-            </td>
-
-            <td>
-              Payment
-            </td>
-
-            <td>
-
-              <span class="status-pill low">
-
-                <i class="ti ti-point-filled"></i>
-
-                Low risk
-
-              </span>
-
-            </td>
-
-            <td>
-              Yesterday
-            </td>
-
-          </tr>
-
-
-          <tr>
-
-            <td>
-              college-portal.edu.in
-            </td>
-
-            <td>
-              Website
-            </td>
-
-            <td>
-
-              <span class="status-pill low">
-
-                <i class="ti ti-point-filled"></i>
-
-                Low risk
-
-              </span>
-
-            </td>
-
-            <td>
-              2 days ago
-            </td>
-
-          </tr>
-
+          {% endfor %}
         </tbody>
-
       </table>
-
     </div>
+
+    {% else %}
+    <div class="card">
+      <p style="font-size:13px;color:var(--text-dim);">Loading your history…</p>
+    </div>
+    {% endif %}
 
   </section>
 
@@ -1461,7 +1172,6 @@
 
   const screens = [
     'submit',
-    'analysis',
     'report',
     'correlation',
     'dashboard'
@@ -1476,13 +1186,11 @@
 
     submit: '1. Submit',
 
-    analysis: '2. Live analysis',
+    report: '2. Risk report',
 
-    report: '3. Risk report',
+    correlation: '3. Correlation',
 
-    correlation: '4. Correlation',
-
-    dashboard: '5. Dashboard'
+    dashboard: '4. Dashboard'
 
   };
 
@@ -1557,8 +1265,23 @@
 
   }
 
- 
-  goTo('submit');
+  const initialScreen = "{{ active_screen or 'submit' }}";
+  const historyLoaded = {{ 'true' if history else 'false' }};
+  goTo(screens.includes(initialScreen) ? initialScreen : 'submit');
+
+  // Tabs 'dashboard' and 'correlation' need /history data. If it's already
+  // loaded on this page (we're on /dashboard), just switch screens client-side;
+  // otherwise navigate to /dashboard so Flask fetches it server-side first.
+  document.getElementById('tab-dashboard').onclick = function(){
+    if (historyLoaded) { goTo('dashboard'); } else { location.href = '/dashboard'; }
+  };
+  document.getElementById('tab-correlation').onclick = function(){
+    if (historyLoaded) { goTo('correlation'); } else { location.href = '/dashboard'; }
+  };
+  document.getElementById('tab-submit').onclick = function(){
+    goTo('submit');
+  };
+
 
 </script>
 
