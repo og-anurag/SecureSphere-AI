@@ -1,10 +1,4 @@
 fastapi
 uvicorn
-tensorflow
-scikit-learn
-numpy
-pandas
-pymongo
-python-dotenv
 requests
-beautifulsoup4
+python-dotenv
