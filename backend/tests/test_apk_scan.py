@@ -11,6 +11,15 @@ TEST_APK = Path("test_valid.apk")
 
 
 def get_auth_token():
+    client.post(
+        "/auth/register",
+        json={
+            "username": "pytestlogin",
+            "email": "pytestlogin@example.com",
+            "password": "Test@123"
+        }
+    )
+
     response = client.post(
         "/auth/login",
         json={
