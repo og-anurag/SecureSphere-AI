@@ -1,6 +1,7 @@
 import re
 from urllib.parse import urlparse
 
+from app.utils.threat_intel import check_google_safe_browsing
 
 KNOWN_BRANDS = [
     "paypal", "google", "microsoft", "amazon", "sbi", "hdfc",
@@ -133,6 +134,12 @@ def check_url(url: str):
             features["is_typosquat"] = True
             score += 25
             reasons.append(f"Domain closely resembles the brand '{brand}' (possible typosquat)")
+    # Google Safe Browsing
+    safe_browsing = check_google_safe_browsing(url)
+
+    if safe_browsing.get("flagged"):
+        score += 50
+        reasons.append("Google Safe Browsing flagged this URL")
 
     # Risk Level
     if score >= 60:
@@ -142,10 +149,12 @@ def check_url(url: str):
     else:
         risk = "Low"
 
+    features["google_safe_browsing"] = safe_browsing
+
     return {
-    "url": url,
-    "score": score,
-    "risk": risk,
-    "reasons": reasons,
-    "features": features
-}
+        "url": url,
+        "score": score,
+        "risk": risk,
+        "reasons": reasons,
+        "features": features,
+    }
