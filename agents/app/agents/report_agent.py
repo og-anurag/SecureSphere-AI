@@ -33,13 +33,13 @@ def _score_findings(findings: list[dict]) -> int:
 def _risk_level(score: int) -> str:
     """Convert a numeric risk score into a normalized risk level."""
 
-    if score >= 70:
+    if score >= 80:
         return "critical"
 
-    if score >= 40:
+    if score >= 60:
         return "high"
 
-    if score >= 15:
+    if score >= 30:
         return "medium"
 
     return "low"
@@ -152,6 +152,6 @@ def _recommendation_for(level: str) -> str:
         ),
         "critical": (
             "This strongly matches a known attack pattern. "
-            "Do not proceed — report and block."
+            "Do not proceed -- report and block."
         ),
     }[level]
