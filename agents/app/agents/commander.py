@@ -7,7 +7,7 @@ ambiguous free-text input (e.g. "is this email legit: ...").
 Swap in a proper LLM classifier once the heuristics feel limiting.
 """
 import re
-from app.state import SecurityState
+from ..state import SecurityState
 
 URL_PATTERN = re.compile(r"https?://[^\s]+")
 UPI_PATTERN = re.compile(r"[\w.\-]+@[a-zA-Z]+")  # e.g. someone@upi

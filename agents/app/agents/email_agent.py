@@ -1,5 +1,5 @@
 import re
-from app.state import SecurityState
+from ..state import SecurityState
 
 URGENCY_PHRASES = [
     "act now", "urgent", "verify your account", "suspended", "click here immediately",

@@ -1,6 +1,6 @@
 import re
-from app.state import SecurityState
-from app.threat_intel import check_virustotal_file_hash
+from ..state import SecurityState
+from ..threat_intel import check_virustotal_file_hash
 
 # Permissions that are disproportionately common in banking-trojan / spyware APKs.
 DANGEROUS_PERMISSIONS = [

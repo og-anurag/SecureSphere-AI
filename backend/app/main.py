@@ -1,8 +1,19 @@
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import Base, engine
-from app.routes import url_scan, email_scan, apk_scan, payment_scan, qr_scan, auth, history, home
+from app.routes import (
+    url_scan,
+    email_scan,
+    apk_scan,
+    payment_scan,
+    qr_scan,
+    auth,
+    history,
+    home,
+    agent_scan,
+)
 
 # Create tables on startup (SQLite dev DB - swap for Alembic migrations in production)
 Base.metadata.create_all(bind=engine)
@@ -29,3 +40,4 @@ app.include_router(payment_scan.router)
 app.include_router(qr_scan.router)
 app.include_router(auth.router)
 app.include_router(history.router)
+app.include_router(agent_scan.router, prefix="/agent")

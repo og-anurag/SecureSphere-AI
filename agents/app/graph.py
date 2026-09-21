@@ -12,14 +12,13 @@ To add a new agent (e.g. an SSL-certificate deep-check), you only need to:
 """
 from langgraph.graph import StateGraph, END
 
-from app.state import SecurityState
-from app.agents.commander import commander_node, route_after_commander
-from app.agents.browser_agent import browser_agent_node
-from app.agents.email_agent import email_agent_node
-from app.agents.apk_agent import apk_agent_node
-from app.agents.payment_agent import payment_agent_node
-from app.agents.report_agent import report_generator_node
-
+from .state import SecurityState
+from .agents.commander import commander_node, route_after_commander
+from .agents.browser_agent import browser_agent_node
+from .agents.email_agent import email_agent_node
+from .agents.apk_agent import apk_agent_node
+from .agents.payment_agent import payment_agent_node
+from .agents.report_agent import report_generator_node
 
 def build_graph():
     graph = StateGraph(SecurityState)

@@ -1,5 +1,6 @@
 import re
-from app.state import SecurityState
+from ..state import SecurityState
+
 
 # Starter blacklist — in a real build, back this with a shared DB table
 # that grows as users/agents report scam handles.
