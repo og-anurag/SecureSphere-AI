@@ -1,14 +1,12 @@
 from pathlib import Path
 
 from fastapi.testclient import TestClient
-
 from app.main import app
 
-
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+TEST_APK = BACKEND_DIR / "test_valid.apk"
+TEST_NON_APK = BACKEND_DIR / "test.txt"
 client = TestClient(app)
-
-TEST_APK = Path("test_valid.apk")
-
 
 def get_auth_token():
     client.post(
@@ -81,7 +79,7 @@ def test_apk_scan_without_authentication():
 def test_non_apk_file_rejected():
     token = get_auth_token()
 
-    with open("test.txt", "rb") as test_file:
+    with TEST_NON_APK.open("rb") as test_file:
         response = client.post(
             "/scan-apk",
             headers={
