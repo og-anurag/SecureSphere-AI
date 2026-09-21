@@ -69,3 +69,61 @@ def url_result_to_scan_result(result: dict[str, Any]) -> ScanResult:
         },
         recommendation=recommendation,
     )
+def email_result_to_scan_result(
+    result: dict[str, Any],
+    target: str,
+) -> ScanResult:
+    """Convert the existing email scanner result into the unified scan format."""
+
+    score = min(max(int(result.get("score", 0)), 0), 100)
+    risk = str(result.get("risk", "Low"))
+
+    severity_map = {
+        "Low": "low",
+        "Medium": "medium",
+        "High": "high",
+    }
+
+    severity = severity_map.get(risk, "low")
+
+    findings = [
+        ScanFinding(
+            agent="email_scanner",
+            signal="email_heuristic",
+            detail=reason,
+            severity=severity,
+        )
+        for reason in result.get("reasons", [])
+    ]
+
+    if score >= 80:
+        verdict = "malicious"
+        severity = "critical"
+        recommendation = "block"
+    elif score >= 60:
+        verdict = "malicious"
+        severity = "high"
+        recommendation = "block"
+    elif score >= 30:
+        verdict = "suspicious"
+        severity = "medium"
+        recommendation = "warn"
+    else:
+        verdict = "benign"
+        severity = "low"
+        recommendation = "allow"
+
+    confidence = min(max(score / 100, 0.0), 1.0)
+
+    return ScanResult(
+        input_type="email",
+        target=target,
+        verdict=verdict,
+        risk_score=score,
+        severity=severity,
+        confidence=confidence,
+        findings=findings,
+        features=result.get("features", {}),
+        threat_intel={},
+        recommendation=recommendation,
+    )

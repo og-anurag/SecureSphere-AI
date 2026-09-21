@@ -1,65 +1,79 @@
 import re
+
 from ..state import SecurityState
+from app.utils.email_checker import check_email
+from app.utils.scan_adapter import email_result_to_scan_result
 
-URGENCY_PHRASES = [
-    "act now", "urgent", "verify your account", "suspended", "click here immediately",
-    "limited time", "your account will be closed", "confirm your identity", "final notice",
-]
 
-CREDENTIAL_REQUEST_PHRASES = [
-    "enter your password", "confirm your ssn", "otp", "one time password", "cvv", "pin number",
-]
+def _extract_email_parts(raw_input: str) -> tuple[str, str, str]:
+    """Extract sender, subject, and body from a raw email-like input."""
+
+    sender = ""
+    subject = ""
+
+    from_match = re.search(
+        r"(?im)^from:\s*(?:.*<)?([^<>\s]+@[^<>\s]+)>?\s*$",
+        raw_input,
+    )
+
+    subject_match = re.search(
+        r"(?im)^subject:\s*(.*)$",
+        raw_input,
+    )
+
+    if from_match:
+        sender = from_match.group(1).strip()
+
+    if subject_match:
+        subject = subject_match.group(1).strip()
+
+    body_lines = []
+
+    for line in raw_input.splitlines():
+        if re.match(r"(?i)^from:\s*", line):
+            continue
+
+        if re.match(r"(?i)^subject:\s*", line):
+            continue
+
+        body_lines.append(line)
+
+    body = "\n".join(body_lines).strip()
+
+    return sender, subject, body
 
 
 def email_agent_node(state: SecurityState) -> SecurityState:
-    text = state["raw_input"].lower()
+    """Run the production email scanner through LangGraph."""
+
+    raw_input = state["raw_input"].strip()
+
+    sender, subject, body = _extract_email_parts(raw_input)
+
+    result = check_email(
+        sender=sender,
+        subject=subject,
+        body=body,
+    )
+
+    unified = email_result_to_scan_result(
+        result,
+        target=subject or sender or raw_input[:200],
+    )
+
     findings = state.setdefault("findings", [])
 
-    # 1. Urgency / pressure language — classic social engineering
-    hits = [p for p in URGENCY_PHRASES if p in text]
-    if hits:
+    for finding in unified.findings:
         findings.append({
-            "agent": "email_agent",
-            "signal": "urgency_language",
-            "detail": f"Email uses pressure tactics: {', '.join(hits[:3])}",
-            "severity": "medium",
+            "agent": finding.agent,
+            "signal": finding.signal,
+            "detail": finding.detail,
+            "severity": finding.severity,
         })
 
-    # 2. Requests for credentials/OTP — no legitimate service asks this way
-    cred_hits = [p for p in CREDENTIAL_REQUEST_PHRASES if p in text]
-    if cred_hits:
-        findings.append({
-            "agent": "email_agent",
-            "signal": "credential_request",
-            "detail": f"Email requests sensitive info: {', '.join(cred_hits[:3])}",
-            "severity": "high",
-        })
+    state["risk_score"] = unified.risk_score
+    state["risk_level"] = unified.severity
 
-    # 3. Sender / reply-to mismatch (classic spoofing tell)
-    from_match = re.search(r"from:\s*.*<([^>]+)>", text)
-    reply_match = re.search(r"reply-to:\s*.*<([^>]+)>", text)
-    if from_match and reply_match:
-        from_domain = from_match.group(1).split("@")[-1]
-        reply_domain = reply_match.group(1).split("@")[-1]
-        if from_domain != reply_domain:
-            findings.append({
-                "agent": "email_agent",
-                "signal": "sender_replyto_mismatch",
-                "detail": f"From domain '{from_domain}' differs from Reply-To domain '{reply_domain}'.",
-                "severity": "high",
-            })
-
-    # 4. Embedded links — hand off URL(s) so Browser Agent logic can be reused
-    links = re.findall(r"https?://[^\s]+", state["raw_input"])
-    if links:
-        findings.append({
-            "agent": "email_agent",
-            "signal": "contains_links",
-            "detail": f"Email contains {len(links)} link(s): {links[:3]}",
-            "severity": "low",
-        })
-        # NOTE for teammates: this is the hook for cross-agent correlation —
-        # feed these links into browser_agent_node in a follow-up graph run
-        # and tag the result with the same session_id.
+    state["email_scan_result"] = unified.model_dump()
 
     return state
