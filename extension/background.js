@@ -1,7 +1,7 @@
 const API_URL =
   "http" + "://" + "127.0.0.1:8000" + "/agent/analyze";
 
-let lastScannedUrl = "";
+const lastScannedByTab = new Map();
 
 console.log("SecureSphere background worker started");
 
@@ -16,22 +16,30 @@ async function getScanMode() {
 
 
 async function scanUrl(url, tabId) {
-  if (!url.startsWith("http://") && !url.startsWith("https://")) {
+  if (
+    !url.startsWith("http://") &&
+    !url.startsWith("https://")
+  ) {
     return;
   }
 
   const mode = await getScanMode();
 
   if (mode === "manual") {
-    console.log("SecureSphere manual mode - automatic scan skipped:", url);
+    console.log(
+      "SecureSphere manual mode - automatic scan skipped:",
+      url
+    );
     return;
   }
 
-  if (url === lastScannedUrl) {
+  const lastUrl = lastScannedByTab.get(tabId);
+
+  if (lastUrl === url) {
     return;
   }
 
-  lastScannedUrl = url;
+  lastScannedByTab.set(tabId, url);
 
   console.log(
     `SecureSphere ${mode} scanning:`,
@@ -71,7 +79,7 @@ async function scanUrl(url, tabId) {
         mode: mode
       }
     ).catch(() => {
-      // Content script may not be available on browser-controlled pages.
+      // Content script may not be available.
     });
 
   } catch (error) {
@@ -83,10 +91,28 @@ async function scanUrl(url, tabId) {
 }
 
 
-chrome.webNavigation.onCommitted.addListener((details) => {
+function handleNavigation(details) {
   if (details.frameId !== 0) {
     return;
   }
 
-  scanUrl(details.url, details.tabId);
+  scanUrl(
+    details.url,
+    details.tabId
+  );
+}
+
+
+chrome.webNavigation.onCommitted.addListener(
+  handleNavigation
+);
+
+
+chrome.webNavigation.onHistoryStateUpdated.addListener(
+  handleNavigation
+);
+
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  lastScannedByTab.delete(tabId);
 });
