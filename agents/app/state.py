@@ -1,8 +1,3 @@
-"""
-Shared state passed between every node in the LangGraph.
-Add fields here as you add agents (SSL check, typosquatting, etc).
-"""
-
 from typing import TypedDict, List, Optional, Any
 
 
@@ -21,14 +16,13 @@ class SecurityState(TypedDict, total=False):
 
     findings: List[Finding]
 
-    # A scanner can calculate a unified result before LangGraph runs.
-    # Example: the binary APK upload scanner.
     precomputed_scan_result: dict[str, Any]
 
-    # Agent-specific unified results.
     url_scan_result: dict[str, Any]
     email_scan_result: dict[str, Any]
     apk_scan_result: dict[str, Any]
+    payment_scan_result: dict[str, Any]
+    qr_scan_result: dict[str, Any]
 
     risk_score: int
     risk_level: str

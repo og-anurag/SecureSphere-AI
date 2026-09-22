@@ -72,17 +72,15 @@ def commander_node(state: SecurityState) -> SecurityState:
     return state
 
 
-def route_after_commander(state: SecurityState) -> str:
-    """Route the classified input to the appropriate LangGraph agent."""
-
+def route_after_commander(state):
     mapping = {
-        "url": "browser_agent",
-        "email": "email_agent",
-        "apk": "apk_agent",
-        "payment": "payment_agent",
-    }
+    "url": "browser_agent",
+    "email": "email_agent",
+    "apk": "apk_agent",
+    "payment": "payment_agent",
+    "qr": "qr_agent",
+}
 
-    # Unknown input goes directly to the report generator.
     return mapping.get(
         state["input_type"],
         "report_generator",
