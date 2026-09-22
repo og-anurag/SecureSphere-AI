@@ -7,6 +7,18 @@ const scanButton =
 const status =
   document.getElementById("status");
 
+const latestScan =
+  document.getElementById("latestScan");
+
+const latestUrl =
+  document.getElementById("latestUrl");
+
+const latestRisk =
+  document.getElementById("latestRisk");
+
+const latestScore =
+  document.getElementById("latestScore");
+
 const reportPanel =
   document.getElementById("report");
 
@@ -86,8 +98,10 @@ function riskColor(risk) {
   const normalized =
     String(risk || "").toLowerCase();
 
-  if (normalized === "critical" ||
-      normalized === "high") {
+  if (
+    normalized === "critical" ||
+    normalized === "high"
+  ) {
     return "#dc2626";
   }
 
@@ -106,7 +120,10 @@ function riskColor(risk) {
 function renderFindings(items) {
   findings.innerHTML = "";
 
-  if (!Array.isArray(items) || items.length === 0) {
+  if (
+    !Array.isArray(items) ||
+    items.length === 0
+  ) {
     const item =
       document.createElement("li");
 
@@ -125,7 +142,8 @@ function renderFindings(items) {
       finding.signal || "Finding";
 
     const detail =
-      finding.detail || "No detail available.";
+      finding.detail ||
+      "No detail available.";
 
     item.textContent =
       `${signal}: ${detail}`;
@@ -170,6 +188,41 @@ function renderReport(report) {
   );
 
   reportPanel.style.display =
+    "block";
+}
+
+
+async function loadLatestAutomaticScan() {
+  const data =
+    await chrome.storage.local.get(
+      "lastAutomaticScan"
+    );
+
+  if (!data.lastAutomaticScan) {
+    return;
+  }
+
+  const scan =
+    data.lastAutomaticScan;
+
+  const report =
+    scan.report || {};
+
+  latestUrl.textContent =
+    scan.url || "Unknown URL";
+
+  latestRisk.textContent =
+    String(
+      report.risk_level || "unknown"
+    ).toUpperCase();
+
+  latestRisk.style.color =
+    riskColor(report.risk_level);
+
+  latestScore.textContent =
+    `${report.risk_score ?? "N/A"}/100`;
+
+  latestScan.style.display =
     "block";
 }
 
@@ -265,3 +318,4 @@ scanButton.addEventListener(
 
 
 loadSettings();
+loadLatestAutomaticScan();

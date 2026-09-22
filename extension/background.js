@@ -83,6 +83,14 @@ async function scanUrl(url, tabId) {
       "SecureSphere scan result:",
       result
     );
+await chrome.storage.local.set({
+  lastAutomaticScan: {
+    url: url,
+    report: result,
+    mode: mode,
+    scannedAt: new Date().toISOString()
+  }
+});
 
     const risk = String(
       result.risk_level || ""
