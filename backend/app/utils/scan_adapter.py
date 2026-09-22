@@ -127,3 +127,69 @@ def email_result_to_scan_result(
         threat_intel={},
         recommendation=recommendation,
     )
+def apk_hash_result_to_scan_result(
+    result: dict[str, Any],
+    target: str,
+) -> ScanResult:
+    """Convert a VirusTotal APK/file-hash result into the unified scan format."""
+
+    checked = bool(result.get("checked", False))
+    flagged = bool(result.get("flagged", False))
+
+    if flagged:
+        score = 100
+        severity = "critical"
+        verdict = "malicious"
+        recommendation = "block"
+
+        findings = [
+            ScanFinding(
+                agent="virustotal",
+                signal="file_hash_match",
+                detail=(
+                    f"VirusTotal flagged this file: "
+                    f"{result.get('stats', {})}"
+                ),
+                severity="critical",
+            )
+        ]
+
+    elif checked:
+        # VirusTotal checked the hash and did not find a malicious/suspicious
+        # detection. "not_seen_before" is still treated as low risk for now.
+        score = 0
+        severity = "low"
+        verdict = "benign"
+        recommendation = "allow"
+
+        findings = []
+
+    else:
+        score = 0
+        severity = "low"
+        verdict = "unknown"
+        recommendation = "warn"
+
+        findings = [
+            ScanFinding(
+                agent="virustotal",
+                signal="check_unavailable",
+                detail="VirusTotal could not verify this file hash.",
+                severity="low",
+            )
+        ]
+
+    return ScanResult(
+        input_type="apk",
+        target=target,
+        verdict=verdict,
+        risk_score=score,
+        severity=severity,
+        confidence=1.0 if checked else 0.0,
+        findings=findings,
+        features={},
+        threat_intel={
+            "virustotal": result,
+        },
+        recommendation=recommendation,
+    )
