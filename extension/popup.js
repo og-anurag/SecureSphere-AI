@@ -1,11 +1,72 @@
+const saveModeButton = document.getElementById("saveMode");
 const scanButton = document.getElementById("scanButton");
-const result = document.getElementById("result");
+const status = document.getElementById("status");
 
 const API_URL =
-  "http" + "://" + "localhost:8000" + "/agent/analyze";
+  "http" + "://" + "127.0.0.1:8000" + "/agent/analyze";
+
+const DEFAULT_MODE = "manual";
+
+
+function getSelectedMode() {
+  const selected = document.querySelector(
+    'input[name="scanMode"]:checked'
+  );
+
+  return selected ? selected.value : DEFAULT_MODE;
+}
+
+
+function setSelectedMode(mode) {
+  const radio = document.querySelector(
+    `input[name="scanMode"][value="${mode}"]`
+  );
+
+  if (radio) {
+    radio.checked = true;
+  }
+}
+
+
+async function loadSettings() {
+  const data = await chrome.storage.local.get({
+    scanMode: DEFAULT_MODE
+  });
+
+  setSelectedMode(data.scanMode);
+
+  status.textContent =
+    `Current mode: ${formatMode(data.scanMode)}`;
+}
+
+
+function formatMode(mode) {
+  if (mode === "realtime-persistent") {
+    return "Real-time • Persistent";
+  }
+
+  if (mode === "realtime-temporary") {
+    return "Real-time • Temporary";
+  }
+
+  return "Manual Scan";
+}
+
+
+saveModeButton.addEventListener("click", async () => {
+  const mode = getSelectedMode();
+
+  await chrome.storage.local.set({
+    scanMode: mode
+  });
+
+  status.textContent =
+    `Saved: ${formatMode(mode)}`;
+});
+
 
 scanButton.addEventListener("click", async () => {
-  result.textContent = "Scanning current page...";
+  status.textContent = "Scanning current page...";
 
   try {
     const tabs = await chrome.tabs.query({
@@ -16,7 +77,9 @@ scanButton.addEventListener("click", async () => {
     const currentTab = tabs[0];
 
     if (!currentTab || !currentTab.url) {
-      result.textContent = "Could not read the current page.";
+      status.textContent =
+        "Could not read the current page.";
+
       return;
     }
 
@@ -27,44 +90,26 @@ scanButton.addEventListener("click", async () => {
       },
       body: JSON.stringify({
         input: currentTab.url,
-        session_id: "browser-extension"
+        session_id: "browser-extension-manual"
       })
     });
 
     if (!response.ok) {
-      throw new Error(`Backend returned ${response.status}`);
+      throw new Error(
+        `Backend returned ${response.status}`
+      );
     }
 
-    const data = await response.json();
-    const report = data.final_report || data;
-    const findings = report.findings || [];
+    const report = await response.json();
 
-    let findingsHtml = "";
+    status.textContent =
+      `Risk: ${report.risk_level || "unknown"} | Score: ${report.risk_score ?? "N/A"}`;
 
-    if (findings.length > 0) {
-      findingsHtml = `
-        <br>
-        <strong>Findings:</strong>
-        <ul>
-          ${findings
-            .map(
-              finding =>
-                `<li>${finding.detail}</li>`
-            )
-            .join("")}
-        </ul>
-      `;
-    }
-
-    result.innerHTML = `
-      <strong>Risk:</strong> ${report.risk_level ?? "unknown"}<br>
-      <strong>Score:</strong> ${report.risk_score ?? "N/A"}<br>
-      <strong>Recommendation:</strong>
-      ${report.recommendation ?? "N/A"}
-      ${findingsHtml}
-    `;
   } catch (error) {
-    result.textContent =
+    status.textContent =
       "Could not connect to SecureSphere backend.";
   }
 });
+
+
+loadSettings();

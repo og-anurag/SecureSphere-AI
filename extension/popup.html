@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <title>SecureSphere AI</title>
+
   <style>
     body {
-      width: 320px;
+      width: 340px;
       margin: 0;
       padding: 20px;
       font-family: Arial, sans-serif;
@@ -14,18 +15,46 @@
     }
 
     h2 {
-      margin-top: 0;
-      margin-bottom: 8px;
+      margin: 0 0 6px;
     }
 
-    p {
-      font-size: 14px;
+    .subtitle {
+      font-size: 13px;
       color: #6b7280;
+      margin-bottom: 18px;
+    }
+
+    .mode {
+      display: block;
+      padding: 12px;
+      margin-bottom: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 9px;
+      background: white;
+      cursor: pointer;
+    }
+
+    .mode input {
+      margin-right: 8px;
+    }
+
+    .mode-title {
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    .mode-description {
+      margin-top: 4px;
+      margin-left: 23px;
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.4;
     }
 
     button {
       width: 100%;
       padding: 10px;
+      margin-top: 8px;
       border: none;
       border-radius: 8px;
       background: #2563eb;
@@ -34,22 +63,82 @@
       font-size: 14px;
     }
 
-    #result {
-      margin-top: 15px;
-      font-size: 14px;
-      word-break: break-word;
+    #status {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #6b7280;
+    }
+
+    #scanSection {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid #e5e7eb;
     }
   </style>
 </head>
 
 <body>
+
   <h2>SecureSphere AI</h2>
-  <p>Digital security assistant</p>
 
-  <button id="scanButton">Scan Current Page</button>
+  <div class="subtitle">
+    Choose how browser protection should behave.
+  </div>
 
-  <div id="result">Ready to scan.</div>
+  <label class="mode">
+    <input
+      type="radio"
+      name="scanMode"
+      value="manual"
+    >
+    <span class="mode-title">Manual Scan</span>
+
+    <div class="mode-description">
+      Scan only when you open the extension and press the scan button.
+    </div>
+  </label>
+
+  <label class="mode">
+    <input
+      type="radio"
+      name="scanMode"
+      value="realtime-persistent"
+    >
+    <span class="mode-title">Real-time • Persistent</span>
+
+    <div class="mode-description">
+      Automatically scan webpages and keep the security indicator visible.
+    </div>
+  </label>
+
+  <label class="mode">
+    <input
+      type="radio"
+      name="scanMode"
+      value="realtime-temporary"
+    >
+    <span class="mode-title">Real-time • Temporary</span>
+
+    <div class="mode-description">
+      Automatically scan webpages and show the result briefly.
+    </div>
+  </label>
+
+  <button id="saveMode">
+    Save Protection Mode
+  </button>
+
+  <div id="scanSection">
+    <button id="scanButton">
+      Scan Current Page
+    </button>
+  </div>
+
+  <div id="status">
+    Loading settings...
+  </div>
 
   <script src="popup.js"></script>
+
 </body>
 </html>
