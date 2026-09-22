@@ -1,7 +1,7 @@
 const API_URL =
   "http" + "://" + "127.0.0.1:8000" + "/agent/analyze";
 
-const lastScannedByTab = new Map();
+const scanInFlightByTab = new Set();
 const allowOnceByTab = new Map();
 
 console.log("SecureSphere background worker started");
@@ -13,6 +13,31 @@ async function getScanMode() {
   });
 
   return data.scanMode;
+}
+
+
+async function getLastScannedUrl(tabId) {
+  const key = `lastScannedUrl_${tabId}`;
+
+  const data = await chrome.storage.session.get(key);
+
+  return data[key] || "";
+}
+
+
+async function setLastScannedUrl(tabId, url) {
+  const key = `lastScannedUrl_${tabId}`;
+
+  await chrome.storage.session.set({
+    [key]: url
+  });
+}
+
+
+async function clearLastScannedUrl(tabId) {
+  const key = `lastScannedUrl_${tabId}`;
+
+  await chrome.storage.session.remove(key);
 }
 
 
@@ -43,16 +68,39 @@ async function scanUrl(url, tabId) {
     );
 
     allowOnceByTab.delete(tabId);
+
+    await clearLastScannedUrl(tabId);
+
     return;
   }
 
-  const lastUrl = lastScannedByTab.get(tabId);
+  if (scanInFlightByTab.has(tabId)) {
+    console.log(
+      "SecureSphere scan already in progress for tab:",
+      tabId
+    );
+
+    return;
+  }
+
+  const lastUrl =
+    await getLastScannedUrl(tabId);
 
   if (lastUrl === url) {
+    console.log(
+      "SecureSphere already scanned in this tab:",
+      url
+    );
+
     return;
   }
 
-  lastScannedByTab.set(tabId, url);
+  scanInFlightByTab.add(tabId);
+
+  await setLastScannedUrl(
+    tabId,
+    url
+  );
 
   console.log(
     `SecureSphere ${mode} scanning:`,
@@ -77,31 +125,36 @@ async function scanUrl(url, tabId) {
       );
     }
 
-    const result = await response.json();
+    const result =
+      await response.json();
 
     console.log(
       "SecureSphere scan result:",
       result
     );
-await chrome.storage.local.set({
-  lastAutomaticScan: {
-    url: url,
-    report: result,
-    mode: mode,
-    scannedAt: new Date().toISOString()
-  }
-});
 
-    const risk = String(
-      result.risk_level || ""
-    ).toLowerCase();
+    await chrome.storage.local.set({
+      lastAutomaticScan: {
+        url: url,
+        report: result,
+        mode: mode,
+        scannedAt: new Date().toISOString()
+      }
+    });
+
+    const risk =
+      String(
+        result.risk_level || ""
+      ).toLowerCase();
 
     if (
       risk === "high" ||
       risk === "critical"
     ) {
       const blockedUrl =
-        chrome.runtime.getURL("blocked.html") +
+        chrome.runtime.getURL(
+          "blocked.html"
+        ) +
         "?" +
         new URLSearchParams({
           target: url,
@@ -119,9 +172,12 @@ await chrome.storage.local.set({
         url
       );
 
-      await chrome.tabs.update(tabId, {
-        url: blockedUrl
-      });
+      await chrome.tabs.update(
+        tabId,
+        {
+          url: blockedUrl
+        }
+      );
 
       return;
     }
@@ -129,7 +185,8 @@ await chrome.storage.local.set({
     chrome.tabs.sendMessage(
       tabId,
       {
-        type: "SECURESPHERE_SCAN_RESULT",
+        type:
+          "SECURESPHERE_SCAN_RESULT",
         report: result,
         mode: mode
       }
@@ -141,6 +198,15 @@ await chrome.storage.local.set({
     console.error(
       "SecureSphere scan failed:",
       error
+    );
+
+    await clearLastScannedUrl(
+      tabId
+    );
+
+  } finally {
+    scanInFlightByTab.delete(
+      tabId
     );
   }
 }
@@ -154,7 +220,12 @@ function handleNavigation(details) {
   scanUrl(
     details.url,
     details.tabId
-  );
+  ).catch((error) => {
+    console.error(
+      "SecureSphere navigation handler failed:",
+      error
+    );
+  });
 }
 
 
@@ -185,23 +256,59 @@ chrome.runtime.onMessage.addListener(
       return;
     }
 
-    const tabId = sender.tab.id;
+    const tabId =
+      sender.tab.id;
 
     allowOnceByTab.set(
       tabId,
       message.target
     );
 
-    lastScannedByTab.delete(tabId);
+    scanInFlightByTab.delete(
+      tabId
+    );
 
-    chrome.tabs.update(tabId, {
-      url: message.target
+    clearLastScannedUrl(
+      tabId
+    ).catch((error) => {
+      console.error(
+        "SecureSphere cache cleanup failed:",
+        error
+      );
+    });
+
+    chrome.tabs.update(
+      tabId,
+      {
+        url: message.target
+      }
+    ).catch((error) => {
+      console.error(
+        "SecureSphere navigation failed:",
+        error
+      );
     });
   }
 );
 
 
-chrome.tabs.onRemoved.addListener((tabId) => {
-  lastScannedByTab.delete(tabId);
-  allowOnceByTab.delete(tabId);
-});
+chrome.tabs.onRemoved.addListener(
+  (tabId) => {
+    scanInFlightByTab.delete(
+      tabId
+    );
+
+    allowOnceByTab.delete(
+      tabId
+    );
+
+    clearLastScannedUrl(
+      tabId
+    ).catch((error) => {
+      console.error(
+        "SecureSphere tab cache cleanup failed:",
+        error
+      );
+    });
+  }
+);
