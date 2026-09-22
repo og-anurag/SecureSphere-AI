@@ -18,7 +18,7 @@ from app.utils.risk_engine import save_scan
 from app.utils.auth import get_current_user
 from app.database import get_db
 from app.models import User
-
+from agents.app.graph import security_graph
 
 router = APIRouter()
 
@@ -74,6 +74,15 @@ async def scan_apk(
         result=result,
         target=file.filename,
     )
+    graph_state = {
+        "session_id": f"apk-upload-{current_user.id}",
+        "raw_input": file.filename,
+        "input_type": "apk",
+        "findings": [],
+        "precomputed_scan_result": unified_result.model_dump(),
+    }
+
+    graph_result = security_graph.invoke(graph_state)
 
     save_scan(
         db,

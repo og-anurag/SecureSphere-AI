@@ -18,8 +18,33 @@ DANGEROUS_PERMISSIONS = [
 
 
 def apk_agent_node(state: SecurityState) -> SecurityState:
-    text = state["raw_input"]
     findings = state.setdefault("findings", [])
+
+    # ---------------------------------------------------------
+    # Binary APK scanner result already computed upstream.
+    # Do not scan the same APK again.
+    # ---------------------------------------------------------
+    precomputed = state.get("precomputed_scan_result")
+
+    if precomputed:
+        state["apk_scan_result"] = precomputed
+
+        for finding in precomputed.get("findings", []):
+            findings.append(finding)
+
+        state["risk_score"] = int(
+            precomputed.get("risk_score", 0)
+        )
+        state["risk_level"] = str(
+            precomputed.get("severity", "low")
+        )
+
+        return state
+
+    # ---------------------------------------------------------
+    # Existing hash-based APK flow.
+    # ---------------------------------------------------------
+    text = state["raw_input"]
 
     hash_match = re.search(
         r"\b[a-fA-F0-9]{64}\b|\b[a-fA-F0-9]{32}\b",
@@ -66,6 +91,9 @@ def apk_agent_node(state: SecurityState) -> SecurityState:
         state["risk_score"] = 0
         state["risk_level"] = "low"
 
+    # ---------------------------------------------------------
+    # Existing permission detection for text/hash-based input.
+    # ---------------------------------------------------------
     perm_hits = [
         permission
         for permission in DANGEROUS_PERMISSIONS

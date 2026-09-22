@@ -2,6 +2,7 @@ from pathlib import Path
 from app.utils import scan_adapter
 from fastapi.testclient import TestClient
 from app.main import app
+from app.routes import apk_scan
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 TEST_APK = BACKEND_DIR / "test_valid.apk"
@@ -153,4 +154,65 @@ def test_apk_scan_creates_unified_result(monkeypatch):
         "allow",
         "warn",
         "block",
+    }
+def test_apk_scan_invokes_langgraph(monkeypatch):
+    token = get_auth_token()
+
+    captured = {}
+
+    def fake_graph_invoke(state):
+        captured["state"] = state
+
+        return {
+            **state,
+            "risk_score": 60,
+            "risk_level": "high",
+            "final_report": {
+                "input_type": "apk",
+                "risk_score": 60,
+                "risk_level": "high",
+            },
+        }
+
+    monkeypatch.setattr(
+        apk_scan.security_graph,
+        "invoke",
+        fake_graph_invoke,
+    )
+
+    with TEST_APK.open("rb") as apk:
+        response = client.post(
+            "/scan-apk",
+            headers={
+                "Authorization": f"Bearer {token}"
+            },
+            files={
+                "file": (
+                    "test_valid.apk",
+                    apk,
+                    "application/vnd.android.package-archive"
+                )
+            }
+        )
+
+    assert response.status_code == 200
+
+    assert "state" in captured
+
+    graph_state = captured["state"]
+
+    assert graph_state["input_type"] == "apk"
+    assert graph_state["raw_input"] == "test_valid.apk"
+    assert "precomputed_scan_result" in graph_state
+
+    precomputed = graph_state["precomputed_scan_result"]
+
+    assert precomputed["input_type"] == "apk"
+    assert precomputed["target"] == "test_valid.apk"
+    assert 0 <= precomputed["risk_score"] <= 100
+    assert precomputed["severity"] in {
+        "low",
+        "medium",
+        "high",
+        "critical",
     }

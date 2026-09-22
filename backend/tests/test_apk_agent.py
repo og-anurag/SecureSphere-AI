@@ -162,3 +162,45 @@ def test_binary_apk_result_to_unified_scan_result():
         finding.agent == "apk_scanner"
         for finding in result.findings
     )
+def test_apk_agent_consumes_precomputed_binary_scan_result():
+    precomputed = {
+        "input_type": "apk",
+        "target": "uploaded.apk",
+        "verdict": "malicious",
+        "risk_score": 60,
+        "severity": "high",
+        "confidence": 0.6,
+        "findings": [
+            {
+                "agent": "apk_scanner",
+                "signal": "apk_heuristic",
+                "detail": "Suspicious permission: android.permission.READ_SMS",
+                "severity": "high",
+            }
+        ],
+        "features": {
+            "has_suspicious_permissions": True,
+            "permission_count": 1,
+        },
+        "threat_intel": {},
+        "recommendation": "block",
+    }
+
+    state = {
+        "session_id": "binary-apk-agent-test",
+        "raw_input": "uploaded.apk",
+        "input_type": "apk",
+        "findings": [],
+        "precomputed_scan_result": precomputed,
+    }
+
+    result = apk_agent_node(state)
+
+    assert result["risk_score"] == 60
+    assert result["risk_level"] == "high"
+    assert result["apk_scan_result"] == precomputed
+
+    assert any(
+        finding["agent"] == "apk_scanner"
+        for finding in result["findings"]
+    )
