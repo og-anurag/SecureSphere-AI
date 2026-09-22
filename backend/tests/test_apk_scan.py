@@ -1,5 +1,5 @@
 from pathlib import Path
-
+from app.utils import scan_adapter
 from fastapi.testclient import TestClient
 from app.main import app
 
@@ -97,3 +97,60 @@ def test_non_apk_file_rejected():
     assert response.status_code == 400
 
     assert response.json()["detail"] == "Only APK files are allowed"
+def test_apk_scan_creates_unified_result(monkeypatch):
+    token = get_auth_token()
+
+    captured = {}
+
+    original_adapter = scan_adapter.apk_result_to_scan_result
+
+    def capture_unified_result(result, target):
+        unified = original_adapter(result, target)
+        captured["result"] = unified
+        return unified
+
+    monkeypatch.setattr(
+        "app.routes.apk_scan.apk_result_to_scan_result",
+        capture_unified_result,
+    )
+
+    with TEST_APK.open("rb") as apk:
+        response = client.post(
+            "/scan-apk",
+            headers={
+                "Authorization": f"Bearer {token}"
+            },
+            files={
+                "file": (
+                    "test_valid.apk",
+                    apk,
+                    "application/vnd.android.package-archive"
+                )
+            }
+        )
+
+    assert response.status_code == 200
+    assert "result" in captured
+
+    unified = captured["result"]
+
+    assert unified.input_type == "apk"
+    assert unified.target == "test_valid.apk"
+    assert 0 <= unified.risk_score <= 100
+    assert unified.severity in {
+        "low",
+        "medium",
+        "high",
+        "critical",
+    }
+    assert unified.verdict in {
+        "benign",
+        "suspicious",
+        "malicious",
+        "unknown",
+    }
+    assert unified.recommendation in {
+        "allow",
+        "warn",
+        "block",
+    }

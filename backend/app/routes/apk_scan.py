@@ -3,7 +3,7 @@ from fastapi import (
     UploadFile,
     File,
     HTTPException,
-    Depends
+    Depends,
 )
 
 import zipfile
@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.schemas.apk_schema import APKResponse
 from app.utils.apk_checker import check_apk
+from app.utils.scan_adapter import apk_result_to_scan_result
 from app.utils.risk_engine import save_scan
 from app.utils.auth import get_current_user
 from app.database import get_db
@@ -30,12 +31,11 @@ async def scan_apk(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-
     # Check file extension
     if not file.filename.lower().endswith(".apk"):
         raise HTTPException(
             status_code=400,
-            detail="Only APK files are allowed"
+            detail="Only APK files are allowed",
         )
 
     # Read at most 50 MB + 1 byte
@@ -45,7 +45,7 @@ async def scan_apk(
     if len(contents) > MAX_APK_SIZE:
         raise HTTPException(
             status_code=413,
-            detail="APK file is too large. Maximum size is 50 MB."
+            detail="APK file is too large. Maximum size is 50 MB.",
         )
 
     file_size = len(contents)
@@ -53,32 +53,44 @@ async def scan_apk(
     # Validate APK ZIP structure
     try:
         with zipfile.ZipFile(BytesIO(contents)) as apk:
-
             if "AndroidManifest.xml" not in apk.namelist():
                 raise HTTPException(
                     status_code=400,
-                    detail="Invalid APK: AndroidManifest.xml not found"
+                    detail="Invalid APK: AndroidManifest.xml not found",
                 )
 
     except zipfile.BadZipFile:
         raise HTTPException(
             status_code=400,
-            detail="Invalid APK file"
+            detail="Invalid APK file",
         )
 
     # Analyze APK
     result = check_apk(contents)
 
-    save_scan(
-        db, current_user.id, "apk", file.filename,
-        result["risk"], result["score"], result["reasons"]
+    # Convert the existing scanner result into the unified
+    # SecureSphere ScanResult schema.
+    unified_result = apk_result_to_scan_result(
+        result=result,
+        target=file.filename,
     )
 
+    save_scan(
+        db,
+        current_user.id,
+        "apk",
+        file.filename,
+        result["risk"],
+        result["score"],
+        result["reasons"],
+    )
+
+    # Keep the existing API response contract unchanged.
     return {
         "filename": file.filename,
         "file_size": file_size,
         "risk": result["risk"],
         "score": result["score"],
         "reasons": result["reasons"],
-        "features": result["features"]
+        "features": result["features"],
     }

@@ -3,7 +3,9 @@ from typing import Any
 from app.schemas.scan_schema import ScanFinding, ScanResult
 
 
-def url_result_to_scan_result(result: dict[str, Any]) -> ScanResult:
+def url_result_to_scan_result(
+    result: dict[str, Any],
+) -> ScanResult:
     """Convert the existing URL scanner result into the unified scan format."""
 
     score = int(result.get("score", 0))
@@ -69,6 +71,8 @@ def url_result_to_scan_result(result: dict[str, Any]) -> ScanResult:
         },
         recommendation=recommendation,
     )
+
+
 def email_result_to_scan_result(
     result: dict[str, Any],
     target: str,
@@ -127,6 +131,8 @@ def email_result_to_scan_result(
         threat_intel={},
         recommendation=recommendation,
     )
+
+
 def apk_hash_result_to_scan_result(
     result: dict[str, Any],
     target: str,
@@ -155,8 +161,6 @@ def apk_hash_result_to_scan_result(
         ]
 
     elif checked:
-        # VirusTotal checked the hash and did not find a malicious/suspicious
-        # detection. "not_seen_before" is still treated as low risk for now.
         score = 0
         severity = "low"
         verdict = "benign"
@@ -191,5 +195,54 @@ def apk_hash_result_to_scan_result(
         threat_intel={
             "virustotal": result,
         },
+        recommendation=recommendation,
+    )
+
+
+def apk_result_to_scan_result(
+    result: dict[str, Any],
+    target: str,
+) -> ScanResult:
+    """Convert the binary APK scanner result into the unified scan format."""
+
+    score = min(max(int(result.get("score", 0)), 0), 100)
+
+    if score >= 80:
+        severity = "critical"
+        verdict = "malicious"
+        recommendation = "block"
+    elif score >= 60:
+        severity = "high"
+        verdict = "malicious"
+        recommendation = "block"
+    elif score >= 30:
+        severity = "medium"
+        verdict = "suspicious"
+        recommendation = "warn"
+    else:
+        severity = "low"
+        verdict = "benign"
+        recommendation = "allow"
+
+    findings = [
+        ScanFinding(
+            agent="apk_scanner",
+            signal="apk_heuristic",
+            detail=reason,
+            severity=severity,
+        )
+        for reason in result.get("reasons", [])
+    ]
+
+    return ScanResult(
+        input_type="apk",
+        target=target,
+        verdict=verdict,
+        risk_score=score,
+        severity=severity,
+        confidence=min(max(score / 100, 0.0), 1.0),
+        findings=findings,
+        features=result.get("features", {}),
+        threat_intel={},
         recommendation=recommendation,
     )
