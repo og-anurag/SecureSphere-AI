@@ -5,29 +5,35 @@
   <title>SecureSphere AI</title>
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
-      width: 340px;
+      width: 360px;
       margin: 0;
-      padding: 20px;
+      padding: 18px;
       font-family: Arial, sans-serif;
       background: #f5f7fb;
       color: #1f2937;
     }
 
     h2 {
-      margin: 0 0 6px;
+      margin: 0 0 5px;
+      font-size: 20px;
     }
 
     .subtitle {
-      font-size: 13px;
+      font-size: 12px;
       color: #6b7280;
-      margin-bottom: 18px;
+      margin-bottom: 16px;
+      line-height: 1.4;
     }
 
     .mode {
       display: block;
-      padding: 12px;
-      margin-bottom: 10px;
+      padding: 11px;
+      margin-bottom: 9px;
       border: 1px solid #d1d5db;
       border-radius: 9px;
       background: white;
@@ -40,13 +46,13 @@
 
     .mode-title {
       font-weight: 600;
-      font-size: 14px;
+      font-size: 13px;
     }
 
     .mode-description {
       margin-top: 4px;
       margin-left: 23px;
-      font-size: 12px;
+      font-size: 11px;
       color: #6b7280;
       line-height: 1.4;
     }
@@ -54,25 +60,88 @@
     button {
       width: 100%;
       padding: 10px;
-      margin-top: 8px;
+      margin-top: 7px;
       border: none;
       border-radius: 8px;
       background: #2563eb;
       color: white;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    button:hover {
+      opacity: 0.92;
     }
 
     #status {
-      margin-top: 12px;
-      font-size: 12px;
+      margin-top: 10px;
+      font-size: 11px;
       color: #6b7280;
     }
 
     #scanSection {
-      margin-top: 16px;
-      padding-top: 16px;
+      margin-top: 15px;
+      padding-top: 15px;
       border-top: 1px solid #e5e7eb;
+    }
+
+    #report {
+      display: none;
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 10px;
+      background: white;
+      border: 1px solid #d1d5db;
+    }
+
+    .report-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .risk-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 7px;
+      font-size: 12px;
+    }
+
+    .risk-value {
+      font-weight: 700;
+    }
+
+    #recommendation {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #e5e7eb;
+      font-size: 11px;
+      line-height: 1.5;
+      color: #4b5563;
+    }
+
+    #findingsSection {
+      margin-top: 10px;
+    }
+
+    #findingsTitle {
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+
+    #findings {
+      margin: 0;
+      padding-left: 18px;
+      font-size: 11px;
+      color: #4b5563;
+    }
+
+    #findings li {
+      margin-bottom: 4px;
+      line-height: 1.35;
     }
   </style>
 </head>
@@ -82,7 +151,7 @@
   <h2>SecureSphere AI</h2>
 
   <div class="subtitle">
-    Choose how browser protection should behave.
+    Browser protection and manual security analysis.
   </div>
 
   <label class="mode">
@@ -94,7 +163,7 @@
     <span class="mode-title">Manual Scan</span>
 
     <div class="mode-description">
-      Scan only when you open the extension and press the scan button.
+      Scan only when you press the scan button.
     </div>
   </label>
 
@@ -107,7 +176,7 @@
     <span class="mode-title">Real-time • Persistent</span>
 
     <div class="mode-description">
-      Automatically scan webpages and keep the security indicator visible.
+      Automatically scan webpages and keep the result visible.
     </div>
   </label>
 
@@ -136,6 +205,37 @@
 
   <div id="status">
     Loading settings...
+  </div>
+
+  <div id="report">
+    <div class="report-title">
+      Security Report
+    </div>
+
+    <div class="risk-row">
+      <span>Risk</span>
+      <span id="riskLevel" class="risk-value">-</span>
+    </div>
+
+    <div class="risk-row">
+      <span>Score</span>
+      <span id="riskScore" class="risk-value">-</span>
+    </div>
+
+    <div class="risk-row">
+      <span>Confidence</span>
+      <span id="confidence" class="risk-value">-</span>
+    </div>
+
+    <div id="recommendation"></div>
+
+    <div id="findingsSection">
+      <div id="findingsTitle">
+        Findings
+      </div>
+
+      <ul id="findings"></ul>
+    </div>
   </div>
 
   <script src="popup.js"></script>
