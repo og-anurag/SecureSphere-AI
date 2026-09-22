@@ -38,7 +38,7 @@ def get_history(
     ]
 
     correlation = check_campaign_correlation(db, current_user.id)
-    high_risk_count = sum(1 for r in rows if r.risk == "High")
+    high_risk_count = sum(1 for r in rows if r.risk in ("High", "Critical"))
 
     return HistoryResponse(
         total_scans=len(rows),
