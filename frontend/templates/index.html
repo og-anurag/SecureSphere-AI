@@ -1117,11 +1117,11 @@
       </div>
     </div>
 
-    {% set url_count = history.items | selectattr("input_type", "equalto", "url") | list | length %}
-    {% set email_count = history.items | selectattr("input_type", "equalto", "email") | list | length %}
-    {% set apk_count = history.items | selectattr("input_type", "equalto", "apk") | list | length %}
-    {% set qr_count = history.items | selectattr("input_type", "equalto", "qr") | list | length %}
-    {% set payment_count = history.items | selectattr("input_type", "equalto", "payment") | list | length %}
+    {% set url_count = history['items'] | selectattr("input_type", "equalto", "url") | list | length %}
+{% set email_count = history['items'] | selectattr("input_type", "equalto", "email") | list | length %}
+{% set apk_count = history['items'] | selectattr("input_type", "equalto", "apk") | list | length %}
+{% set qr_count = history['items'] | selectattr("input_type", "equalto", "qr") | list | length %}
+{% set payment_count = history['items'] | selectattr("input_type", "equalto", "payment") | list | length %}
 
     <div class="stat-row">
       <div class="stat">
