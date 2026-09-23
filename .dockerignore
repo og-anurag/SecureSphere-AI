@@ -1,0 +1,15 @@
+.git
+.github
+.env
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+backend/.pytest_cache
+securesphere.db
+.vscode
+extension
+frontend
+agents
+tests
