@@ -1,5 +1,6 @@
 from pathlib import Path
 from app.utils import scan_adapter
+from app.utils.apk_checker import check_apk
 from fastapi.testclient import TestClient
 from app.main import app
 from app.routes import apk_scan
@@ -143,6 +144,7 @@ def test_apk_scan_creates_unified_result(monkeypatch):
         "medium",
         "high",
         "critical",
+        "unknown",
     }
     assert unified.verdict in {
         "benign",
@@ -215,4 +217,14 @@ def test_apk_scan_invokes_langgraph(monkeypatch):
         "medium",
         "high",
         "critical",
+        "unknown",
     }
+
+def test_unparseable_manifest_returns_unknown_and_warning():
+    result = check_apk(TEST_APK.read_bytes())
+    assert result['risk'] == 'Unknown'
+    unified = scan_adapter.apk_result_to_scan_result(result, target='test_valid.apk')
+    assert unified.verdict == 'unknown'
+    assert unified.severity == 'unknown'
+    assert unified.recommendation == 'warn'
+    assert unified.confidence == 0.0

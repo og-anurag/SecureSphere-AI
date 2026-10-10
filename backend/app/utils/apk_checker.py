@@ -54,7 +54,7 @@ def check_apk(contents: bytes):
 
         if manifest_xml is None:
             return {
-                "risk": "Low",
+                "risk": "Unknown",
                 "score": 0,
                 "reasons": [
                     "AndroidManifest.xml could not be parsed"
@@ -69,7 +69,7 @@ def check_apk(contents: bytes):
 
     except Exception:
         return {
-            "risk": "Low",
+            "risk": "Unknown",
             "score": 0,
             "reasons": [
                 "AndroidManifest.xml could not be parsed"

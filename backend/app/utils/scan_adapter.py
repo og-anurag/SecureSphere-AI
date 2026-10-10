@@ -206,23 +206,37 @@ def apk_result_to_scan_result(
     """Convert the binary APK scanner result into the unified scan format."""
 
     score = min(max(int(result.get("score", 0)), 0), 100)
+    features = result.get("features", {})
+    manifest_unparsed = (
+        result.get("risk") == "Unknown"
+        or features.get("manifest_parsed") is False
+    )
 
-    if score >= 80:
+    if manifest_unparsed:
+        severity = "unknown"
+        verdict = "unknown"
+        recommendation = "warn"
+        confidence = 0.0
+    elif score >= 80:
         severity = "critical"
         verdict = "malicious"
         recommendation = "block"
+        confidence = min(max(score / 100, 0.0), 1.0)
     elif score >= 60:
         severity = "high"
         verdict = "malicious"
         recommendation = "block"
+        confidence = min(max(score / 100, 0.0), 1.0)
     elif score >= 30:
         severity = "medium"
         verdict = "suspicious"
         recommendation = "warn"
+        confidence = min(max(score / 100, 0.0), 1.0)
     else:
         severity = "low"
         verdict = "benign"
         recommendation = "allow"
+        confidence = min(max(score / 100, 0.0), 1.0)
 
     findings = [
         ScanFinding(
@@ -240,12 +254,14 @@ def apk_result_to_scan_result(
         verdict=verdict,
         risk_score=score,
         severity=severity,
-        confidence=min(max(score / 100, 0.0), 1.0),
+        confidence=confidence,
         findings=findings,
-        features=result.get("features", {}),
+        features=features,
         threat_intel={},
         recommendation=recommendation,
     )
+
+
 def payment_result_to_scan_result(
     result: dict[str, Any],
 ) -> ScanResult:
