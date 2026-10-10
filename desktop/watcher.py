@@ -1,6 +1,9 @@
+import os
 import sys
 import time
 from pathlib import Path
+
+import requests
 
 
 POLL_INTERVAL_SECONDS = 3
@@ -17,6 +20,16 @@ MONITORED_EXTENSIONS = {
     ".ps1",
     ".scr",
 }
+
+BACKEND_URL = os.getenv(
+    "SECURESPHERE_BACKEND_URL",
+    "http://127.0.0.1:8000",
+)
+
+SECURESPHERE_TOKEN = os.getenv(
+    "SECURESPHERE_TOKEN",
+    "",
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -97,33 +110,99 @@ def wait_for_stable_file(
     return False
 
 
-def scan_apk(path: Path) -> None:
+def scan_apk_locally(
+    path: Path,
+) -> dict:
+    contents = path.read_bytes()
+
+    return check_apk(contents)
+
+
+def scan_apk_with_backend(
+    path: Path,
+) -> dict:
+    if not SECURESPHERE_TOKEN:
+        raise RuntimeError(
+            "SECURESPHERE_TOKEN is not set"
+        )
+
+    endpoint = (
+        BACKEND_URL.rstrip("/")
+        + "/scan-apk"
+    )
+
+    headers = {
+        "Authorization":
+            f"Bearer {SECURESPHERE_TOKEN}",
+    }
+
+    with path.open("rb") as file_handle:
+        response = requests.post(
+            endpoint,
+            headers=headers,
+            files={
+                "file": (
+                    path.name,
+                    file_handle,
+                    "application/vnd.android.package-archive",
+                )
+            },
+            timeout=120,
+        )
+
+    response.raise_for_status()
+
+    return response.json()
+
+
+def scan_apk(
+    path: Path,
+) -> None:
+    print(
+        f"[APK DETECTED] {path.name}"
+    )
+
+    if SECURESPHERE_TOKEN:
+        try:
+            result = scan_apk_with_backend(path)
+
+            print(
+                f"[BACKEND APK SCAN] "
+                f"{path.name} -> "
+                f"{result.get('risk', 'Unknown')} "
+                f"({result.get('score', 0)}/100)"
+            )
+
+            for reason in result.get(
+                "reasons",
+                [],
+            ):
+                print(
+                    f"  - {reason}"
+                )
+
+            return
+
+        except Exception as exc:
+            print(
+                f"[BACKEND SCAN ERROR] "
+                f"{path.name}: {exc}"
+            )
+
     try:
-        contents = path.read_bytes()
-
-        result = check_apk(contents)
-
-        risk = result.get(
-            "risk",
-            "Unknown",
-        )
-
-        score = result.get(
-            "score",
-            0,
-        )
-
-        reasons = result.get(
-            "reasons",
-            [],
-        )
+        result = scan_apk_locally(path)
 
         print(
-            f"[APK SCAN] {path.name} "
-            f"-> {risk} ({score}/100)"
+            f"[LOCAL APK SCAN] "
+            f"{path.name} -> "
+            f"{result.get('risk', 'Unknown')} "
+            f"({result.get('score', 0)}/100)"
         )
 
-        for reason in reasons:
+        for reason in result.get(
+            "reasons",
+            [],
+        ):
             print(
                 f"  - {reason}"
             )
@@ -135,7 +214,9 @@ def scan_apk(path: Path) -> None:
         )
 
 
-def handle_new_file(path: Path) -> None:
+def handle_new_file(
+    path: Path,
+) -> None:
     print(
         f"[NEW DOWNLOAD] {path.name}"
     )
@@ -152,7 +233,7 @@ def handle_new_file(path: Path) -> None:
     else:
         print(
             f"[MONITORED] {path.name} "
-            f"(no dedicated scanner yet)"
+            "(no dedicated scanner yet)"
         )
 
 
@@ -165,6 +246,19 @@ def run_watcher() -> None:
 
     print(
         f"Monitoring: {downloads}"
+    )
+
+    print(
+        f"Backend: {BACKEND_URL}"
+    )
+
+    print(
+        "Backend APK authentication: "
+        + (
+            "configured"
+            if SECURESPHERE_TOKEN
+            else "not configured"
+        )
     )
 
     print(
