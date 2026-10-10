@@ -73,3 +73,46 @@ def test_missing_defender_scanner_is_unverified(monkeypatch, capsys):
     output = capsys.readouterr().out
     assert "[UNVERIFIED] sample.msi" in output
     assert "scanner was not found" in output
+
+
+def test_unstable_new_file_is_skipped(monkeypatch, capsys, tmp_path):
+    path = tmp_path / "sample.apk"
+    calls = []
+    monkeypatch.setattr(watcher, "wait_for_stable_file", lambda _: False)
+    monkeypatch.setattr(watcher, "scan_apk", lambda p: calls.append(("apk", p)))
+    monkeypatch.setattr(
+        watcher, "scan_file_with_defender", lambda p: calls.append(("defender", p))
+    )
+
+    watcher.handle_new_file(path)
+
+    assert calls == []
+    assert "[SKIPPED] sample.apk" in capsys.readouterr().out
+
+
+def test_stable_apk_routes_to_apk_scanner(monkeypatch, tmp_path):
+    path = tmp_path / "sample.APK"
+    calls = []
+    monkeypatch.setattr(watcher, "wait_for_stable_file", lambda _: True)
+    monkeypatch.setattr(watcher, "scan_apk", lambda p: calls.append(("apk", p)))
+    monkeypatch.setattr(
+        watcher, "scan_file_with_defender", lambda p: calls.append(("defender", p))
+    )
+
+    watcher.handle_new_file(path)
+
+    assert calls == [("apk", path)]
+
+
+def test_stable_non_apk_routes_to_defender(monkeypatch, tmp_path):
+    path = tmp_path / "sample.ZIP"
+    calls = []
+    monkeypatch.setattr(watcher, "wait_for_stable_file", lambda _: True)
+    monkeypatch.setattr(watcher, "scan_apk", lambda p: calls.append(("apk", p)))
+    monkeypatch.setattr(
+        watcher, "scan_file_with_defender", lambda p: calls.append(("defender", p))
+    )
+
+    watcher.handle_new_file(path)
+
+    assert calls == [("defender", path)]
