@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import subprocess
 from pathlib import Path
 
 import requests
@@ -214,6 +215,86 @@ def scan_apk(
         )
 
 
+
+def find_defender_cli() -> Path | None:
+    '''Locate the newest installed Windows Defender command-line scanner.'''
+    program_data = os.getenv("ProgramData")
+    if program_data:
+        platform_dir = (
+            Path(program_data)
+            / "Microsoft"
+            / "Windows Defender"
+            / "Platform"
+        )
+        candidates = list(platform_dir.glob("*/MpCmdRun.exe"))
+        if candidates:
+            def version_key(candidate: Path) -> tuple[int, ...]:
+                version_text = candidate.parent.name.split("-", 1)[0]
+                try:
+                    return tuple(int(part) for part in version_text.split("."))
+                except ValueError:
+                    return ()
+
+            return max(candidates, key=version_key)
+
+    program_files = os.getenv("ProgramFiles", r"C:\Program Files")
+    fallback = Path(program_files) / "Windows Defender" / "MpCmdRun.exe"
+    return fallback if fallback.is_file() else None
+
+
+def scan_file_with_defender(path: Path) -> None:
+    '''Scan a non-APK download and report only outcomes supported by Defender.'''
+    print(f"[DEFENDER SCAN REQUESTED] {path.name}")
+    scanner = find_defender_cli()
+    if scanner is None:
+        print(
+            f"[UNVERIFIED] {path.name}: "
+            "Windows Defender command-line scanner was not found."
+        )
+        return
+
+    try:
+        completed = subprocess.run(
+            [
+                str(scanner),
+                "-Scan",
+                "-ScanType",
+                "3",
+                "-File",
+                str(path.resolve()),
+            ],
+            capture_output=True,
+            text=True,
+            timeout=300,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        print(f"[UNVERIFIED] {path.name}: Defender scan timed out.")
+        return
+    except OSError as exc:
+        print(f"[UNVERIFIED] {path.name}: Could not run Defender scan: {exc}")
+        return
+
+    output = "\n".join(
+        part for part in (completed.stdout, completed.stderr) if part
+    ).strip()
+    print(output or "[No scan output returned]")
+    normalized = output.casefold()
+
+    if completed.returncode == 0 and "found no threats" in normalized:
+        print(f"[DEFENDER CLEAN] {path.name}: Defender reported no threats.")
+    elif "found threats" in normalized or "threat detected" in normalized:
+        print(
+            f"[DEFENDER DETECTION] {path.name}: Defender reported a threat. "
+            "Follow Windows Security remediation guidance."
+        )
+    else:
+        print(
+            f"[UNVERIFIED] {path.name}: scan outcome is inconclusive "
+            f"(exit code {completed.returncode})."
+        )
+
+
 def handle_new_file(
     path: Path,
 ) -> None:
@@ -231,10 +312,7 @@ def handle_new_file(
     if path.suffix.lower() == ".apk":
         scan_apk(path)
     else:
-        print(
-            f"[MONITORED] {path.name} "
-            "(no dedicated scanner yet)"
-        )
+        scan_file_with_defender(path)
 
 
 def run_watcher() -> None:
