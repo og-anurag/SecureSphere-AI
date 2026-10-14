@@ -16,3 +16,4 @@ Pillow
 pyzbar
 psycopg2-binary
 langgraph==1.2.12
+psycopg[binary]
