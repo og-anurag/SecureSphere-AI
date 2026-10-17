@@ -39,7 +39,7 @@ const findings =
 
 
 const API_URL =
-  "http" + "://" + "127.0.0.1:8000" + "/agent/analyze";
+  "https://securesphere-ai-api.onrender.com/agent/analyze";
 
 const DEFAULT_MODE = "manual";
 

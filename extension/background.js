@@ -1,5 +1,5 @@
 const API_URL =
-  "http" + "://" + "127.0.0.1:8000" + "/agent/analyze";
+  "https://securesphere-ai-api.onrender.com/agent/analyze";
 
 const scanInFlightByTab = new Set();
 const allowOnceByTab = new Map();
