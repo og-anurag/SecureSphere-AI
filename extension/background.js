@@ -9,10 +9,20 @@ console.log("SecureSphere background worker started");
 
 async function getScanMode() {
   const data = await chrome.storage.local.get({
-    scanMode: "manual"
+    scanMode: "manual",
+    privacyConsent: false
   });
 
-  return data.scanMode;
+  const mode = data.scanMode || "manual";
+  const isRealtime =
+    mode === "realtime-persistent" ||
+    mode === "realtime-temporary";
+
+  if (isRealtime && data.privacyConsent !== true) {
+    return "manual";
+  }
+
+  return mode;
 }
 
 
@@ -306,7 +316,7 @@ chrome.tabs.onRemoved.addListener(
       tabId
     ).catch((error) => {
       console.error(
-        "SecureSphere tab cache cleanup failed:",
+        "SecureSphere cache cleanup failed:",
         error
       );
     });

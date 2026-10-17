@@ -7,6 +7,9 @@ const scanButton =
 const status =
   document.getElementById("status");
 
+const privacyConsent =
+  document.getElementById("privacyConsent");
+
 const latestScan =
   document.getElementById("latestScan");
 
@@ -84,13 +87,28 @@ function formatMode(mode) {
 async function loadSettings() {
   const data =
     await chrome.storage.local.get({
-      scanMode: DEFAULT_MODE
+      scanMode: DEFAULT_MODE,
+      privacyConsent: false
     });
 
-  setSelectedMode(data.scanMode);
+  privacyConsent.checked = data.privacyConsent === true;
+
+  let mode = data.scanMode || DEFAULT_MODE;
+  const isRealtime =
+    mode === "realtime-persistent" ||
+    mode === "realtime-temporary";
+
+  if (isRealtime && !privacyConsent.checked) {
+    mode = DEFAULT_MODE;
+    await chrome.storage.local.set({
+      scanMode: DEFAULT_MODE
+    });
+  }
+
+  setSelectedMode(mode);
 
   status.textContent =
-    `Current mode: ${formatMode(data.scanMode)}`;
+    `Current mode: ${formatMode(mode)}`;
 }
 
 
@@ -227,20 +245,48 @@ async function loadLatestAutomaticScan() {
 }
 
 
-saveModeButton.addEventListener(
-  "click",
-  async () => {
-    const mode =
-      getSelectedMode();
+saveModeButton.addEventListener("click", async () => {
+  const mode = getSelectedMode();
+  const isRealtime =
+    mode === "realtime-persistent" ||
+    mode === "realtime-temporary";
+
+  if (isRealtime && !privacyConsent.checked) {
+    setSelectedMode(DEFAULT_MODE);
+    await chrome.storage.local.set({
+      scanMode: DEFAULT_MODE
+    });
+    status.textContent =
+      "Check the privacy consent box before enabling real-time scanning. Manual Scan remains enabled.";
+    return;
+  }
+
+  await chrome.storage.local.set({
+    scanMode: mode,
+    privacyConsent: privacyConsent.checked
+  });
+
+  status.textContent =
+    `Saved: ${formatMode(mode)}`;
+});
+
+
+privacyConsent.addEventListener("change", async () => {
+  await chrome.storage.local.set({
+    privacyConsent: privacyConsent.checked
+  });
+
+  if (!privacyConsent.checked && getSelectedMode() !== DEFAULT_MODE) {
+    setSelectedMode(DEFAULT_MODE);
 
     await chrome.storage.local.set({
-      scanMode: mode
+      scanMode: DEFAULT_MODE
     });
 
     status.textContent =
-      `Saved: ${formatMode(mode)}`;
+      "Consent removed. Manual Scan is enabled.";
   }
-);
+});
 
 
 scanButton.addEventListener(
