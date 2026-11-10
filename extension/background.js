@@ -14,11 +14,13 @@ async function getScanMode() {
   });
 
   const mode = data.scanMode || "manual";
+  const consentGiven = data.privacyConsent === true;
   const isRealtime =
     mode === "realtime-persistent" ||
     mode === "realtime-temporary";
 
-  if (isRealtime && data.privacyConsent !== true) {
+  // URL sharing must be explicitly allowed for automatic scans.
+  if (isRealtime && !consentGiven) {
     return "manual";
   }
 
@@ -204,6 +206,28 @@ async function scanUrl(url, tabId) {
       // Content script may not be available.
     });
 
+    // Real-time Temporary opens the extension popup after a completed scan.
+    // Chrome 127+ supports action.openPopup(); browsers can still reject the request.
+    if (mode === "realtime-temporary") {
+      try {
+        if (typeof chrome.action.openPopup === "function") {
+          const tab = await chrome.tabs.get(tabId);
+          await chrome.action.openPopup({
+            windowId: tab.windowId
+          });
+        } else {
+          console.warn(
+            "Automatic popup requires Chrome 127 or later."
+          );
+        }
+      } catch (popupError) {
+        console.warn(
+          "SecureSphere could not open the result popup:",
+          popupError
+        );
+      }
+    }
+
   } catch (error) {
     console.error(
       "SecureSphere scan failed:",
@@ -316,7 +340,7 @@ chrome.tabs.onRemoved.addListener(
       tabId
     ).catch((error) => {
       console.error(
-        "SecureSphere cache cleanup failed:",
+        "SecureSphere tab cache cleanup failed:",
         error
       );
     });

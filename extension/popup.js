@@ -6,9 +6,47 @@ const scanButton =
 
 const status =
   document.getElementById("status");
+const privacyNotice =
+  document.getElementById("privacyNotice");
+
+const privacyNoticeToggle =
+  document.getElementById("privacyNoticeToggle");
+
+const privacyNoticeContent =
+  document.getElementById("privacyNoticeContent");
+
+const privacyNoticeChevron =
+  document.getElementById("privacyNoticeChevron");
+
+function setPrivacyNoticeExpanded(expanded) {
+  privacyNoticeContent.hidden = !expanded;
+
+  privacyNoticeToggle.setAttribute(
+    "aria-expanded",
+    String(expanded)
+  );
+
+  privacyNoticeChevron.textContent =
+    expanded ? "−" : "+";
+}
+
+privacyNoticeToggle.addEventListener("click", () => {
+  setPrivacyNoticeExpanded(privacyNoticeContent.hidden);
+});
+
+document.addEventListener("click", (event) => {
+  if (!privacyNotice.contains(event.target)) {
+    setPrivacyNoticeExpanded(false);
+  }
+});
 
 const privacyConsent =
   document.getElementById("privacyConsent");
+const privacyConsentLabel =
+  document.getElementById("privacyConsentLabel");
+
+const changeConsentButton =
+  document.getElementById("changeConsent");
 
 const latestScan =
   document.getElementById("latestScan");
@@ -24,6 +62,17 @@ const latestScore =
 
 const reportPanel =
   document.getElementById("report");
+const scanProgress =
+  document.getElementById("scanProgress");
+
+const resultModal =
+  document.getElementById("resultModal");
+
+const modalReportHost =
+  document.getElementById("modalReportHost");
+
+const closeResultModalButton =
+  document.getElementById("closeResultModal");
 
 const riskLevel =
   document.getElementById("riskLevel");
@@ -69,7 +118,40 @@ function setSelectedMode(mode) {
     radio.checked = true;
   }
 }
+async function updateModeHighlight() {
+  const data = await chrome.storage.local.get({
+    scanMode: DEFAULT_MODE
+  });
 
+  const activeMode = data.scanMode || DEFAULT_MODE;
+
+  document.querySelectorAll(".mode").forEach((label) => {
+    const radio = label.querySelector('input[name="scanMode"]');
+
+    label.classList.toggle(
+      "active-mode",
+      Boolean(radio && radio.value === activeMode)
+    );
+  });
+}
+
+function syncConsentUI() {
+  const consentGiven = privacyConsent.checked === true;
+
+  privacyConsentLabel.style.display =
+    consentGiven ? "none" : "flex";
+
+  changeConsentButton.style.display =
+    consentGiven ? "inline-block" : "none";
+}
+
+document.querySelectorAll('input[name="scanMode"]').forEach((radio) => {
+  radio.addEventListener("change", () => {
+    updateModeHighlight();
+    saveModeButton.classList.remove("saved");
+    saveModeButton.textContent = "Save Protection Mode";
+  });
+});
 
 function formatMode(mode) {
   if (mode === "realtime-persistent") {
@@ -106,9 +188,11 @@ async function loadSettings() {
   }
 
   setSelectedMode(mode);
+syncConsentUI();
+updateModeHighlight();
 
-  status.textContent =
-    `Current mode: ${formatMode(mode)}`;
+status.textContent =
+  `Current mode: ${formatMode(mode)}`;
 }
 
 
@@ -172,43 +256,40 @@ function renderFindings(items) {
 
 
 function renderReport(report) {
-  const risk =
-    report.risk_level || "unknown";
+  const risk = report.risk_level || "unknown";
+  const score = report.risk_score ?? "N/A";
+  const confidenceValue = report.confidence;
 
-  const score =
-    report.risk_score ?? "N/A";
+  riskLevel.textContent = String(risk).toUpperCase();
+  riskLevel.style.color = riskColor(risk);
 
-  const confidenceValue =
-    report.confidence;
-
-  riskLevel.textContent =
-    String(risk).toUpperCase();
-
-  riskLevel.style.color =
-    riskColor(risk);
-
-  riskScore.textContent =
-    `${score}/100`;
+  riskScore.textContent = `${score}/100`;
 
   confidence.textContent =
     confidenceValue === undefined
       ? "N/A"
-      : `${Math.round(
-          Number(confidenceValue) * 100
-        )}%`;
+      : `${Math.round(Number(confidenceValue) * 100)}%`;
 
   recommendation.textContent =
     report.recommendation ||
     "No recommendation returned.";
 
-  renderFindings(
-    report.findings
-  );
+  renderFindings(report.findings);
 
-  reportPanel.style.display =
-    "block";
+  // Move the existing report into the result modal.
+  modalReportHost.appendChild(reportPanel);
+  reportPanel.style.display = "block";
+  resultModal.hidden = false;
 }
+closeResultModalButton.addEventListener("click", () => {
+  resultModal.hidden = true;
+});
 
+resultModal.addEventListener("click", (event) => {
+  if (event.target === resultModal) {
+    resultModal.hidden = true;
+  }
+});
 
 async function loadLatestAutomaticScan() {
   const data =
@@ -240,8 +321,12 @@ async function loadLatestAutomaticScan() {
   latestScore.textContent =
     `${report.risk_score ?? "N/A"}/100`;
 
-  latestScan.style.display =
-    "block";
+  latestScan.style.display = "block";
+
+  // When opened by Real-time Temporary, show the full report modal.
+  if (scan.mode === "realtime-temporary") {
+    renderReport(report);
+  }
 }
 
 
@@ -251,11 +336,18 @@ saveModeButton.addEventListener("click", async () => {
     mode === "realtime-persistent" ||
     mode === "realtime-temporary";
 
+  saveModeButton.classList.remove("saved");
+  saveModeButton.textContent = "Save Protection Mode";
+
   if (isRealtime && !privacyConsent.checked) {
     setSelectedMode(DEFAULT_MODE);
+
     await chrome.storage.local.set({
       scanMode: DEFAULT_MODE
     });
+
+    await updateModeHighlight();
+
     status.textContent =
       "Check the privacy consent box before enabling real-time scanning. Manual Scan remains enabled.";
     return;
@@ -266,17 +358,23 @@ saveModeButton.addEventListener("click", async () => {
     privacyConsent: privacyConsent.checked
   });
 
-  status.textContent =
-    `Saved: ${formatMode(mode)}`;
+  await updateModeHighlight();
+
+  saveModeButton.classList.add("saved");
+  saveModeButton.textContent = "Saved ✓";
+  status.textContent = `Saved: ${formatMode(mode)}`;
 });
 
-
 privacyConsent.addEventListener("change", async () => {
+  const consentGiven = privacyConsent.checked === true;
+
   await chrome.storage.local.set({
-    privacyConsent: privacyConsent.checked
+    privacyConsent: consentGiven
   });
 
-  if (!privacyConsent.checked && getSelectedMode() !== DEFAULT_MODE) {
+  syncConsentUI();
+
+  if (!consentGiven) {
     setSelectedMode(DEFAULT_MODE);
 
     await chrome.storage.local.set({
@@ -285,83 +383,83 @@ privacyConsent.addEventListener("change", async () => {
 
     status.textContent =
       "Consent removed. Manual Scan is enabled.";
+  } else {
+    status.textContent =
+      "URL-sharing consent saved. Select a mode and click Save Protection Mode.";
   }
+
+  updateModeHighlight();
+});
+
+changeConsentButton.addEventListener("click", async () => {
+  privacyConsent.checked = false;
+
+  await chrome.storage.local.set({
+    privacyConsent: false,
+    scanMode: DEFAULT_MODE
+  });
+
+  setSelectedMode(DEFAULT_MODE);
+  syncConsentUI();
+  updateModeHighlight();
+
+  status.textContent =
+    "Consent removed. Manual Scan is enabled.";
 });
 
 
-scanButton.addEventListener(
-  "click",
-  async () => {
-    status.textContent =
-      "Scanning current page...";
+scanButton.addEventListener("click", async () => {
+  status.textContent = "Scanning current page...";
+  reportPanel.style.display = "none";
+  resultModal.hidden = true;
+  scanProgress.hidden = false;
 
-    reportPanel.style.display =
-      "none";
+  scanButton.disabled = true;
+  scanButton.textContent = "Scanning...";
 
-    try {
-      const tabs =
-        await chrome.tabs.query({
-          active: true,
-          currentWindow: true
-        });
+  try {
+    const tabs = await chrome.tabs.query({
+      active: true,
+      currentWindow: true
+    });
 
-      const currentTab =
-        tabs[0];
+    const currentTab = tabs[0];
 
-      if (
-        !currentTab ||
-        !currentTab.url
-      ) {
-        status.textContent =
-          "Could not read the current page.";
-
-        return;
-      }
-
-      const response =
-        await fetch(API_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json"
-          },
-          body: JSON.stringify({
-            input: currentTab.url,
-            session_id:
-              "browser-extension-manual"
-          })
-        });
-
-      if (!response.ok) {
-        throw new Error(
-          `Backend returned ${response.status}`
-        );
-      }
-
-      const report =
-        await response.json();
-
-      renderReport(report);
-
-      status.textContent =
-        `Scan complete: ${
-          String(
-            report.risk_level || "unknown"
-          ).toUpperCase()
-        }`;
-
-    } catch (error) {
-      console.error(
-        "SecureSphere manual scan failed:",
-        error
-      );
-
-      status.textContent =
-        "Could not connect to SecureSphere backend.";
+    if (!currentTab || !currentTab.url) {
+      status.textContent = "Could not read the current page.";
+      return;
     }
-  }
-);
 
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        input: currentTab.url,
+        session_id: "browser-extension-manual"
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Backend returned ${response.status}`);
+    }
+
+    const report = await response.json();
+
+    renderReport(report);
+
+    status.textContent =
+      `Scan complete: ${String(report.risk_level || "unknown").toUpperCase()}`;
+  } catch (error) {
+    console.error("SecureSphere manual scan failed:", error);
+    status.textContent = "Could not connect to SecureSphere backend.";
+  } finally {
+    scanProgress.hidden = true;
+    scanButton.disabled = false;
+    scanButton.textContent = "Scan Current Page";
+  }
+});
 
 loadSettings();
 loadLatestAutomaticScan();

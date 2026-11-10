@@ -1,9 +1,15 @@
+
 import json
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.schemas.history_schema import HistoryResponse, HistoryItem
-from app.utils.risk_engine import check_campaign_correlation
+from app.utils.risk_engine import (
+    check_campaign_correlation,
+    cleanup_expired_scans,
+    get_scan_retention_cutoff,
+)
 from app.utils.auth import get_current_user
 from app.database import get_db
 from app.models import User, ScanHistory
@@ -16,9 +22,17 @@ def get_history(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    # Delete expired scan records before returning history.
+    cleanup_expired_scans(db)
+    db.commit()
+
+    # Only return scans from the last 21 days.
+    cutoff = get_scan_retention_cutoff()
+
     rows = (
         db.query(ScanHistory)
         .filter(ScanHistory.user_id == current_user.id)
+        .filter(ScanHistory.created_at >= cutoff)
         .order_by(ScanHistory.created_at.desc())
         .limit(50)
         .all()
@@ -37,8 +51,15 @@ def get_history(
         for r in rows
     ]
 
-    correlation = check_campaign_correlation(db, current_user.id)
-    high_risk_count = sum(1 for r in rows if r.risk in ("High", "Critical"))
+    correlation = check_campaign_correlation(
+        db,
+        current_user.id
+    )
+
+    high_risk_count = sum(
+        1 for r in rows
+        if r.risk in ("High", "Critical")
+    )
 
     return HistoryResponse(
         total_scans=len(rows),

@@ -1,55 +1,58 @@
+
 let securityIndicator = null;
 let protectionOverlay = null;
 let hideTimer = null;
 
+function createElement(tag, styles = {}, text = null) {
+  const element = document.createElement(tag);
+
+  Object.assign(element.style, styles);
+
+  if (text !== null) {
+    element.textContent = String(text);
+  }
+
+  return element;
+}
 
 function createSecurityIndicator() {
   if (securityIndicator) {
     return securityIndicator;
   }
 
-  securityIndicator = document.createElement("div");
+  securityIndicator = createElement("div", {
+    position: "fixed",
+    top: "18px",
+    right: "18px",
+    zIndex: "2147483647",
+    width: "250px",
+    padding: "12px 14px",
+    background: "#111C2E",
+    color: "#E7EDF7",
+    border: "1px solid #33456B",
+    borderRadius: "10px",
+    boxShadow: "0 8px 30px rgba(0,0,0,0.35)",
+    fontFamily: "Arial, sans-serif",
+    fontSize: "13px"
+  });
 
-  securityIndicator.id =
-    "securesphere-security-indicator";
+  securityIndicator.id = "securesphere-security-indicator";
 
-  securityIndicator.style.position = "fixed";
-  securityIndicator.style.top = "18px";
-  securityIndicator.style.right = "18px";
-  securityIndicator.style.zIndex = "2147483647";
-  securityIndicator.style.width = "250px";
-  securityIndicator.style.padding = "12px 14px";
-  securityIndicator.style.background = "#111C2E";
-  securityIndicator.style.color = "#E7EDF7";
-  securityIndicator.style.border = "1px solid #33456B";
-  securityIndicator.style.borderRadius = "10px";
-  securityIndicator.style.boxShadow =
-    "0 8px 30px rgba(0,0,0,0.35)";
-  securityIndicator.style.fontFamily =
-    "Arial, sans-serif";
-  securityIndicator.style.fontSize = "13px";
+  const heading = createElement("div", {
+    fontWeight: "700",
+    fontSize: "14px",
+    marginBottom: "6px"
+  }, "🛡 SecureSphere AI");
 
-  securityIndicator.innerHTML = `
-    <div style="
-      font-weight:700;
-      font-size:14px;
-      margin-bottom:6px;
-    ">
-      🛡 SecureSphere AI
-    </div>
+  const status = createElement("div", {}, "Waiting for scan...");
+  status.id = "securesphere-status";
 
-    <div id="securesphere-status">
-      Waiting for scan...
-    </div>
-  `;
+  securityIndicator.append(heading, status);
 
-  document.documentElement.appendChild(
-    securityIndicator
-  );
+  document.documentElement.appendChild(securityIndicator);
 
   return securityIndicator;
 }
-
 
 function removeProtectionOverlay() {
   if (protectionOverlay) {
@@ -58,124 +61,108 @@ function removeProtectionOverlay() {
   }
 }
 
-
 function createProtectionOverlay(report) {
   if (protectionOverlay) {
     return;
   }
 
-  protectionOverlay = document.createElement("div");
+  protectionOverlay = createElement("div", {
+    position: "fixed",
+    inset: "0",
+    zIndex: "2147483646",
+    background: "rgba(8, 12, 20, 0.96)",
+    color: "#E7EDF7",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: "Arial, sans-serif"
+  });
 
-  protectionOverlay.id =
-    "securesphere-protection-overlay";
+  protectionOverlay.id = "securesphere-protection-overlay";
 
-  protectionOverlay.style.position = "fixed";
-  protectionOverlay.style.inset = "0";
-  protectionOverlay.style.zIndex = "2147483646";
-  protectionOverlay.style.background =
-    "rgba(8, 12, 20, 0.96)";
-  protectionOverlay.style.color = "#E7EDF7";
-  protectionOverlay.style.display = "flex";
-  protectionOverlay.style.alignItems = "center";
-  protectionOverlay.style.justifyContent = "center";
-  protectionOverlay.style.fontFamily =
-    "Arial, sans-serif";
+  const card = createElement("div", {
+    width: "min(520px, calc(100vw - 40px))",
+    padding: "28px",
+    border: "1px solid #E1594B",
+    borderRadius: "16px",
+    background: "#111C2E",
+    boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+    textAlign: "center"
+  });
 
-  const score = report.risk_score ?? 0;
-  const risk =
-    String(report.risk_level || "unknown").toUpperCase();
+  const warningIcon = createElement("div", {
+    fontSize: "34px",
+    marginBottom: "12px"
+  }, "⚠️");
 
-  protectionOverlay.innerHTML = `
-    <div style="
-      width:min(520px, calc(100vw - 40px));
-      padding:28px;
-      border:1px solid #E1594B;
-      border-radius:16px;
-      background:#111C2E;
-      box-shadow:0 20px 60px rgba(0,0,0,0.5);
-      text-align:center;
-    ">
-      <div style="
-        font-size:34px;
-        margin-bottom:12px;
-      ">
-        ⚠️
-      </div>
+  const heading = createElement("div", {
+    fontSize: "22px",
+    fontWeight: "700",
+    marginBottom: "10px"
+  }, "Security Warning");
 
-      <div style="
-        font-size:22px;
-        font-weight:700;
-        margin-bottom:10px;
-      ">
-        Security Warning
-      </div>
+  const score = Number(report.risk_score);
+  const safeScore = Number.isFinite(score) ? score : 0;
 
-      <div style="
-        color:#E1594B;
-        font-size:16px;
-        font-weight:700;
-        margin-bottom:8px;
-      ">
-        ${risk} RISK — ${score}/100
-      </div>
+  const risk = String(report.risk_level || "unknown")
+    .toUpperCase()
+    .slice(0, 30);
 
-      <div style="
-        color:#AEBBD0;
-        font-size:14px;
-        line-height:1.6;
-        margin-bottom:22px;
-      ">
-        ${report.recommendation || "This page may be unsafe."}
-      </div>
+  const riskText = createElement("div", {
+    color: "#E1594B",
+    fontSize: "16px",
+    fontWeight: "700",
+    marginBottom: "8px"
+  }, `${risk} RISK — ${safeScore}/100`);
 
-      <div style="
-        display:flex;
-        gap:10px;
-        justify-content:center;
-      ">
-        <button
-          id="securesphere-leave-page"
-          style="
-            border:0;
-            border-radius:8px;
-            padding:11px 18px;
-            cursor:pointer;
-            font-weight:700;
-            background:#E1594B;
-            color:white;
-          "
-        >
-          Leave Page
-        </button>
+  const recommendation = createElement("div", {
+    color: "#AEBBD0",
+    fontSize: "14px",
+    lineHeight: "1.6",
+    marginBottom: "22px"
+  }, report.recommendation || "This page may be unsafe.");
 
-        <button
-          id="securesphere-continue-page"
-          style="
-            border:1px solid #52627D;
-            border-radius:8px;
-            padding:11px 18px;
-            cursor:pointer;
-            background:#1A2740;
-            color:#E7EDF7;
-          "
-        >
-          Continue Anyway
-        </button>
-      </div>
-    </div>
-  `;
+  const buttonContainer = createElement("div", {
+    display: "flex",
+    gap: "10px",
+    justifyContent: "center"
+  });
 
-  document.documentElement.appendChild(
-    protectionOverlay
+  const leaveButton = createElement("button", {
+    border: "0",
+    borderRadius: "8px",
+    padding: "11px 18px",
+    cursor: "pointer",
+    fontWeight: "700",
+    background: "#E1594B",
+    color: "white"
+  }, "Leave Page");
+
+  leaveButton.id = "securesphere-leave-page";
+
+  const continueButton = createElement("button", {
+    border: "1px solid #52627D",
+    borderRadius: "8px",
+    padding: "11px 18px",
+    cursor: "pointer",
+    background: "#1A2740",
+    color: "#E7EDF7"
+  }, "Continue Anyway");
+
+  continueButton.id = "securesphere-continue-page";
+
+  buttonContainer.append(leaveButton, continueButton);
+
+  card.append(
+    warningIcon,
+    heading,
+    riskText,
+    recommendation,
+    buttonContainer
   );
 
-  const leaveButton = document.getElementById(
-    "securesphere-leave-page"
-  );
-
-  const continueButton = document.getElementById(
-    "securesphere-continue-page"
-  );
+  protectionOverlay.appendChild(card);
+  document.documentElement.appendChild(protectionOverlay);
 
   leaveButton.addEventListener("click", () => {
     history.back();
@@ -186,62 +173,59 @@ function createProtectionOverlay(report) {
   });
 }
 
-
 function updateSecurityIndicator(report, mode) {
-  const indicator =
-    createSecurityIndicator();
+  const indicator = createSecurityIndicator();
 
-  const status =
-    indicator.querySelector(
-      "#securesphere-status"
-    );
+  const status = indicator.querySelector("#securesphere-status");
 
-  const risk =
-    report.risk_level || "unknown";
-
-  const score =
-    report.risk_score ?? 0;
+  const risk = String(report.risk_level || "unknown");
+  const score = Number(report.risk_score);
+  const safeScore = Number.isFinite(score) ? score : 0;
 
   let riskColor = "#3FBFA6";
 
-  if (risk === "medium") {
+  if (risk.toLowerCase() === "medium") {
     riskColor = "#E8A33D";
   }
 
   if (
-    risk === "high" ||
-    risk === "critical"
+    risk.toLowerCase() === "high" ||
+    risk.toLowerCase() === "critical"
   ) {
     riskColor = "#E1594B";
   }
 
-  indicator.style.borderColor =
-    riskColor;
+  indicator.style.borderColor = riskColor;
 
-  status.innerHTML = `
-    <div style="margin-bottom:5px;">
-      Risk:
-      <strong style="color:${riskColor};">
-        ${String(risk).toUpperCase()}
-      </strong>
-    </div>
+  const riskLine = createElement("div", {
+    marginBottom: "5px"
+  }, "Risk: ");
 
-    <div style="margin-bottom:5px;">
-      Score: ${score}/100
-    </div>
+  const riskValue = createElement("strong", {
+    color: riskColor
+  }, risk.toUpperCase());
 
-    <div style="
-      color:#8FA1C0;
-      font-size:12px;
-      line-height:1.4;
-    ">
-      ${report.recommendation || "Scan completed."}
-    </div>
-  `;
+  riskLine.appendChild(riskValue);
+
+  const scoreLine = createElement("div", {
+    marginBottom: "5px"
+  }, `Score: ${safeScore}/100`);
+
+  const recommendation = createElement("div", {
+    color: "#8FA1C0",
+    fontSize: "12px",
+    lineHeight: "1.4"
+  }, report.recommendation || "Scan completed.");
+
+  status.replaceChildren(
+    riskLine,
+    scoreLine,
+    recommendation
+  );
 
   if (
-    risk === "high" ||
-    risk === "critical"
+    risk.toLowerCase() === "high" ||
+    risk.toLowerCase() === "critical"
   ) {
     createProtectionOverlay(report);
   } else {
@@ -260,19 +244,16 @@ function updateSecurityIndicator(report, mode) {
   }
 }
 
-
-chrome.runtime.onMessage.addListener(
-  (message) => {
-    if (
-      message.type !==
-      "SECURESPHERE_SCAN_RESULT"
-    ) {
-      return;
-    }
-
-    updateSecurityIndicator(
-      message.report,
-      message.mode
-    );
+chrome.runtime.onMessage.addListener((message) => {
+  if (
+    !message ||
+    message.type !== "SECURESPHERE_SCAN_RESULT"
+  ) {
+    return;
   }
-);
+
+  updateSecurityIndicator(
+    message.report || {},
+    message.mode
+  );
+});

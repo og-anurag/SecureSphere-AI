@@ -57,6 +57,32 @@
       line-height: 1.4;
     }
 
+.mode.active-mode {
+  border: 2px solid #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.10);
+}
+
+.mode.active-mode .mode-title {
+  color: #1d4ed8;
+}
+
+.mode input {
+  accent-color: #2563eb;
+}
+
+#changeConsent {
+  display: none;
+  width: auto;
+  margin: 0 0 12px;
+  padding: 0;
+  background: transparent;
+  color: #2563eb;
+  text-align: left;
+  font-size: 11px;
+  text-decoration: underline;
+}
+
     button {
       width: 100%;
       padding: 10px;
@@ -143,27 +169,174 @@
       margin-bottom: 4px;
       line-height: 1.35;
     }
+#saveMode {
+  background: #2563eb;
+  transition: background-color 0.2s ease;
+}
+
+#saveMode.saved {
+  background: #16a34a;
+}
+
+.scan-progress {
+  margin-top: 12px;
+  padding: 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 9px;
+}
+
+.scan-progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 9px;
+  font-size: 12px;
+  color: #1e3a8a;
+}
+
+.progress-track {
+  height: 8px;
+  overflow: hidden;
+  background: #dbeafe;
+  border-radius: 999px;
+}
+
+.progress-bar {
+  width: 35%;
+  height: 100%;
+  background: #2563eb;
+  border-radius: 999px;
+  animation: scan-progress 1.1s ease-in-out infinite;
+}
+
+@keyframes scan-progress {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(320%); }
+}
+
+.scan-progress-note {
+  margin-top: 7px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.result-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  background: rgba(9, 15, 28, 0.72);
+}
+
+.result-modal-backdrop[hidden],
+.scan-progress[hidden] {
+  display: none !important;
+}
+
+.result-modal-card {
+  width: 100%;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  padding: 14px;
+  border-radius: 12px;
+  background: #f5f7fb;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.result-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #1e293b;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+#closeResultModal {
+  width: auto;
+  margin: 0;
+  padding: 6px 10px;
+  background: #e2e8f0;
+  color: #334155;
+}
+.privacy-notice {
+  margin-bottom: 12px;
+}
+
+.privacy-notice-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  text-align: left;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.privacy-notice-content {
+  padding: 10px;
+  border: 1px solid #bfdbfe;
+  border-top: 0;
+  border-radius: 0 0 8px 8px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.privacy-notice-content[hidden] {
+  display: none !important;
+}
   </style>
 </head>
 
 <body>
 
-  <h2>SecureSphere AI</h2>
+ <h2>SecureSphere AI</h2>
 
-  <div class="subtitle">
-    Browser protection and manual security analysis.
-  </div>
-<div style="margin:0 0 12px;padding:10px;border:1px solid #bfdbfe;border-radius:8px;background:#eff6ff;color:#1e3a8a;font-size:11px;line-height:1.45;">
-  <strong>Privacy notice</strong><br>
-  Scans send the page URL to the SecureSphere AI hosted API.
-  Manual scans send the current page when you click Scan.
-  Real-time modes send page URLs automatically as you browse.
+<div class="subtitle">
+  Browser protection and manual security analysis.
 </div>
 
-<label style="display:flex;gap:8px;align-items:flex-start;margin:0 0 12px;font-size:11px;color:#374151;line-height:1.4;">
+<div id="privacyNotice" class="privacy-notice">
+  <button
+    type="button"
+    id="privacyNoticeToggle"
+    class="privacy-notice-toggle"
+    aria-expanded="false"
+    aria-controls="privacyNoticeContent"
+  >
+    <span>Privacy Notice</span>
+    <span id="privacyNoticeChevron" aria-hidden="true">+</span>
+  </button>
+
+  <div id="privacyNoticeContent" class="privacy-notice-content" hidden>
+    Scans send the page URL to the SecureSphere AI hosted API.
+    Manual scans send the current page when you click Scan.
+    Real-time modes send page URLs automatically as you browse.
+  </div>
+</div>
+
+<label id="privacyConsentLabel" style="display:flex;gap:8px;align-items:flex-start;margin:0 0 12px;font-size:11px;color:#374151;line-height:1.4;">
   <input id="privacyConsent" type="checkbox" style="margin-top:2px;">
   <span>I understand and agree to URL sharing for real-time scanning.</span>
 </label>
+
+<button type="button" id="changeConsent">
+  Change URL-sharing consent
+</button>
 
   <label class="mode">
     <input
@@ -213,6 +386,21 @@
       Scan Current Page
     </button>
   </div>
+<div id="scanProgress" class="scan-progress" hidden aria-live="polite">
+  <div class="scan-progress-head">
+    <strong>Scanning current page...</strong>
+    <span>Please wait</span>
+  </div>
+
+  <div class="progress-track" role="progressbar"
+       aria-label="Scanning in progress">
+    <div class="progress-bar"></div>
+  </div>
+
+  <div class="scan-progress-note">
+    Analyzing the page URL with SecureSphere AI.
+  </div>
+</div>
 
   <div id="status">
     Loading settings...
@@ -290,6 +478,18 @@
       <ul id="findings"></ul>
     </div>
   </div>
+<div id="resultModal" class="result-modal-backdrop" hidden>
+  <div class="result-modal-card" role="dialog" aria-modal="true"
+       aria-labelledby="resultModalTitle">
+
+    <div class="result-modal-header">
+      <span id="resultModalTitle">Security Scan Result</span>
+      <button type="button" id="closeResultModal">Close</button>
+    </div>
+
+    <div id="modalReportHost"></div>
+  </div>
+</div>
 
   <script src="popup.js"></script>
 
