@@ -11,15 +11,14 @@ To add a new agent (e.g. an SSL-certificate deep-check), you only need to:
   4. Point its edge at "report_generator".
 """
 from langgraph.graph import StateGraph, END
-
-from app.state import SecurityState
-from app.agents.commander import commander_node, route_after_commander
-from app.agents.browser_agent import browser_agent_node
-from app.agents.email_agent import email_agent_node
-from app.agents.apk_agent import apk_agent_node
-from app.agents.payment_agent import payment_agent_node
-from app.agents.report_agent import report_generator_node
-
+from .state import SecurityState
+from .agents.commander import commander_node, route_after_commander
+from .agents.browser_agent import browser_agent_node
+from .agents.email_agent import email_agent_node
+from .agents.apk_agent import apk_agent_node
+from .agents.payment_agent import payment_agent_node
+from .agents.report_agent import report_generator_node
+from .agents.qr_agent import qr_agent_node
 
 def build_graph():
     graph = StateGraph(SecurityState)
@@ -30,22 +29,29 @@ def build_graph():
     graph.add_node("apk_agent", apk_agent_node)
     graph.add_node("payment_agent", payment_agent_node)
     graph.add_node("report_generator", report_generator_node)
-
+    graph.add_node("qr_agent", qr_agent_node)
     graph.set_entry_point("commander")
 
     graph.add_conditional_edges(
         "commander",
         route_after_commander,
         {
-            "browser_agent": "browser_agent",
-            "email_agent": "email_agent",
-            "apk_agent": "apk_agent",
-            "payment_agent": "payment_agent",
-            "report_generator": "report_generator",  # unknown input_type skips straight through
-        },
+    "browser_agent": "browser_agent",
+    "email_agent": "email_agent",
+    "apk_agent": "apk_agent",
+    "payment_agent": "payment_agent",
+    "qr_agent": "qr_agent",
+    "report_generator": "report_generator",
+},
     )
 
-    for agent in ["browser_agent", "email_agent", "apk_agent", "payment_agent"]:
+    for agent in [
+    "browser_agent",
+    "email_agent",
+    "apk_agent",
+    "payment_agent",
+    "qr_agent",
+]:
         graph.add_edge(agent, "report_generator")
 
     graph.add_edge("report_generator", END)

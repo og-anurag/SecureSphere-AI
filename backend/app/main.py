@@ -1,25 +1,53 @@
+import os
+
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import Base, engine
-from app.routes import url_scan, email_scan, apk_scan, payment_scan, qr_scan, auth, history, home
+from app.routes import (
+    url_scan,
+    email_scan,
+    apk_scan,
+    payment_scan,
+    qr_scan,
+    auth,
+    history,
+    home,
+    agent_scan,
+)
 
-# Create tables on startup (SQLite dev DB - swap for Alembic migrations in production)
-Base.metadata.create_all(bind=engine)
+
+load_dotenv()
+
+
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://127.0.0.1:5000,http://localhost:5000",
+    ).split(",")
+    if origin.strip()
+]
+
 
 app = FastAPI(
     title="SecureSphere AI API",
-    description="AI-powered cybersecurity API for URL, email, APK, QR, and payment threat analysis.",
-    version="1.0.0"
+    description=(
+        "AI-powered cybersecurity API for URL, email, APK, "
+        "QR, and payment threat analysis."
+    ),
+    version="1.0.0",
 )
+
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://127.0.0.1:5000", "http://localhost:5000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 app.include_router(home.router)
 app.include_router(url_scan.router)
@@ -29,3 +57,7 @@ app.include_router(payment_scan.router)
 app.include_router(qr_scan.router)
 app.include_router(auth.router)
 app.include_router(history.router)
+app.include_router(
+    agent_scan.router,
+    prefix="/agent",
+)

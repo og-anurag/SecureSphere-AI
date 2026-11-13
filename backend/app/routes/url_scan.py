@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.schemas.url_schema import URLRequest, URLResponse
 from app.utils.url_checker import check_url
+from app.utils.scan_adapter import url_result_to_scan_result
 from app.utils.risk_engine import save_scan
 from app.utils.auth import get_current_user
 from app.database import get_db
@@ -19,9 +20,16 @@ def scan_url(
 ):
     result = check_url(str(request.url))
 
+    unified_result = url_result_to_scan_result(result)
+
     save_scan(
-        db, current_user.id, "url", result["url"],
-        result["risk"], result["score"], result["reasons"]
+        db,
+        current_user.id,
+        unified_result.input_type,
+        unified_result.target,
+        result["risk"],
+        unified_result.risk_score,
+        result["reasons"],
     )
 
     return result

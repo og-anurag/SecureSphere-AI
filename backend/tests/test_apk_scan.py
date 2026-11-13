@@ -1,14 +1,14 @@
 from pathlib import Path
-
+from app.utils import scan_adapter
+from app.utils.apk_checker import check_apk
 from fastapi.testclient import TestClient
-
 from app.main import app
+from app.routes import apk_scan
 
-
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+TEST_APK = BACKEND_DIR / "test_valid.apk"
+TEST_NON_APK = BACKEND_DIR / "test.txt"
 client = TestClient(app)
-
-TEST_APK = Path("test_valid.apk")
-
 
 def get_auth_token():
     client.post(
@@ -81,7 +81,7 @@ def test_apk_scan_without_authentication():
 def test_non_apk_file_rejected():
     token = get_auth_token()
 
-    with open("test.txt", "rb") as test_file:
+    with TEST_NON_APK.open("rb") as test_file:
         response = client.post(
             "/scan-apk",
             headers={
@@ -99,3 +99,132 @@ def test_non_apk_file_rejected():
     assert response.status_code == 400
 
     assert response.json()["detail"] == "Only APK files are allowed"
+def test_apk_scan_creates_unified_result(monkeypatch):
+    token = get_auth_token()
+
+    captured = {}
+
+    original_adapter = scan_adapter.apk_result_to_scan_result
+
+    def capture_unified_result(result, target):
+        unified = original_adapter(result, target)
+        captured["result"] = unified
+        return unified
+
+    monkeypatch.setattr(
+        "app.routes.apk_scan.apk_result_to_scan_result",
+        capture_unified_result,
+    )
+
+    with TEST_APK.open("rb") as apk:
+        response = client.post(
+            "/scan-apk",
+            headers={
+                "Authorization": f"Bearer {token}"
+            },
+            files={
+                "file": (
+                    "test_valid.apk",
+                    apk,
+                    "application/vnd.android.package-archive"
+                )
+            }
+        )
+
+    assert response.status_code == 200
+    assert "result" in captured
+
+    unified = captured["result"]
+
+    assert unified.input_type == "apk"
+    assert unified.target == "test_valid.apk"
+    assert 0 <= unified.risk_score <= 100
+    assert unified.severity in {
+        "low",
+        "medium",
+        "high",
+        "critical",
+        "unknown",
+    }
+    assert unified.verdict in {
+        "benign",
+        "suspicious",
+        "malicious",
+        "unknown",
+    }
+    assert unified.recommendation in {
+        "allow",
+        "warn",
+        "block",
+    }
+def test_apk_scan_invokes_langgraph(monkeypatch):
+    token = get_auth_token()
+
+    captured = {}
+
+    def fake_graph_invoke(state):
+        captured["state"] = state
+
+        return {
+            **state,
+            "risk_score": 60,
+            "risk_level": "high",
+            "final_report": {
+                "input_type": "apk",
+                "risk_score": 60,
+                "risk_level": "high",
+            },
+        }
+
+    monkeypatch.setattr(
+        apk_scan.security_graph,
+        "invoke",
+        fake_graph_invoke,
+    )
+
+    with TEST_APK.open("rb") as apk:
+        response = client.post(
+            "/scan-apk",
+            headers={
+                "Authorization": f"Bearer {token}"
+            },
+            files={
+                "file": (
+                    "test_valid.apk",
+                    apk,
+                    "application/vnd.android.package-archive"
+                )
+            }
+        )
+
+    assert response.status_code == 200
+
+    assert "state" in captured
+
+    graph_state = captured["state"]
+
+    assert graph_state["input_type"] == "apk"
+    assert graph_state["raw_input"] == "test_valid.apk"
+    assert "precomputed_scan_result" in graph_state
+
+    precomputed = graph_state["precomputed_scan_result"]
+
+    assert precomputed["input_type"] == "apk"
+    assert precomputed["target"] == "test_valid.apk"
+    assert 0 <= precomputed["risk_score"] <= 100
+    assert precomputed["severity"] in {
+        "low",
+        "medium",
+        "high",
+        "critical",
+        "unknown",
+    }
+
+def test_unparseable_manifest_returns_unknown_and_warning():
+    result = check_apk(TEST_APK.read_bytes())
+    assert result['risk'] == 'Unknown'
+    unified = scan_adapter.apk_result_to_scan_result(result, target='test_valid.apk')
+    assert unified.verdict == 'unknown'
+    assert unified.severity == 'unknown'
+    assert unified.recommendation == 'warn'
+    assert unified.confidence == 0.0

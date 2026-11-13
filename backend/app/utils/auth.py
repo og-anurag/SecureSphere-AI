@@ -20,8 +20,22 @@ SECRET_KEY = os.getenv("SECRET_KEY")
 if not SECRET_KEY:
     raise ValueError("SECRET_KEY is not set")
 
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+if len(SECRET_KEY) < 32:
+    raise ValueError(
+        "SECRET_KEY must be at least 32 characters long"
+    )
+
+ALGORITHM = os.getenv(
+    "JWT_ALGORITHM",
+    "HS256"
+)
+
+ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv(
+        "JWT_ACCESS_TOKEN_EXPIRE_MINUTES",
+        "30"
+    )
+)
 
 
 def hash_password(password: str) -> str:

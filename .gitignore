@@ -216,4 +216,18 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
-.vscode/
+.vscode/securesphere.db
+securesphere.db
+
+# Neon local project configuration
+.neon
+
+# Temporary Chrome tester extraction folders
+/SecureSphere-Tester-CleanInstall/
+/SecureSphere-Tester-Verify/
+/Tester-Verify-Updated/
+/Tester-Verify/
+
+# Generated tester package
+/SecureSphereAI-Chrome-Tester.zip
+node_modules/

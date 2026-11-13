@@ -16,3 +16,11 @@ def about():
         "project": "SecureSphere AI",
         "developer": "Backend Team"
     }
+
+
+@router.get("/health")
+def health():
+    return {
+        "status": "ok",
+        "service": "securesphere-ai-api"
+    }

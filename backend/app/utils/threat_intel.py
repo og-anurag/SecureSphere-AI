@@ -6,6 +6,9 @@ so one dead API never crashes the whole agent graph.
 import os
 import base64
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 GOOGLE_SAFE_BROWSING_API_KEY = os.getenv("GOOGLE_SAFE_BROWSING_API_KEY", "")
 VIRUSTOTAL_API_KEY = os.getenv("VIRUSTOTAL_API_KEY", "")
