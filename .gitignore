@@ -230,3 +230,4 @@ securesphere.db
 
 # Generated tester package
 /SecureSphereAI-Chrome-Tester.zip
+node_modules/
