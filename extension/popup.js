@@ -448,6 +448,9 @@ scanButton.addEventListener("click", async () => {
         "This page type can't be scanned. Open a website (http or https) and try again.";
       return;
     }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {
@@ -456,7 +459,8 @@ scanButton.addEventListener("click", async () => {
       body: JSON.stringify({
         input: currentTab.url,
         session_id: "browser-extension-manual"
-      })
+      }),
+      signal: controller.signal
     });
 
     if (!response.ok) {
@@ -464,14 +468,21 @@ scanButton.addEventListener("click", async () => {
     }
 
     const report = await response.json();
+    clearTimeout(timeoutId);
 
     renderReport(report);
 
     status.textContent =
       `Scan complete: ${String(report.risk_level || "unknown").toUpperCase()}`;
-  } catch (error) {
+    } catch (error) {
     console.error("SecureSphere manual scan failed:", error);
-    status.textContent = "Could not connect to SecureSphere backend.";
+
+    if (error.name === "AbortError") {
+      status.textContent =
+        "The scan timed out. The server may be waking up - please try again in a minute.";
+    } else {
+      status.textContent = "Could not connect to SecureSphere backend.";
+    }
   } finally {
     scanProgress.hidden = true;
     scanButton.disabled = false;
