@@ -288,9 +288,14 @@ chrome.runtime.onMessage.addListener(
     }
 
     if (
+      sender.id !== chrome.runtime.id ||
       !sender.tab ||
       sender.tab.id === undefined ||
-      !message.target
+      typeof message.target !== "string" ||
+      !(
+        message.target.startsWith("http://") ||
+        message.target.startsWith("https://")
+      )
     ) {
       return;
     }
