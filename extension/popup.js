@@ -323,9 +323,19 @@ async function loadLatestAutomaticScan() {
 
   latestScan.style.display = "block";
 
-  // When opened by Real-time Temporary, show the full report modal.
+  // When opened by Real-time Temporary, show the full report modal,
+  // but only if this scan belongs to the page the user is on now.
   if (scan.mode === "realtime-temporary") {
-    renderReport(report);
+    const tabs = await chrome.tabs.query({
+      active: true,
+      currentWindow: true
+    });
+
+    const currentUrl = tabs[0] && tabs[0].url;
+
+    if (currentUrl && currentUrl === scan.url) {
+      renderReport(report);
+    }
   }
 }
 
