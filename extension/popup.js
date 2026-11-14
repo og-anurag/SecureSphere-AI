@@ -430,6 +430,14 @@ scanButton.addEventListener("click", async () => {
       return;
     }
 
+    if (
+      !currentTab.url.startsWith("http://") &&
+      !currentTab.url.startsWith("https://")
+    ) {
+      status.textContent =
+        "This page type can't be scanned. Open a website (http or https) and try again.";
+      return;
+    }
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {

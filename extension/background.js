@@ -208,7 +208,7 @@ async function scanUrl(url, tabId) {
 
     // Real-time Temporary opens the extension popup after a completed scan.
     // Chrome 127+ supports action.openPopup(); browsers can still reject the request.
-    if (mode === "realtime-temporary") {
+      if (mode === "realtime-temporary" && risk === "medium") {
       try {
         if (typeof chrome.action.openPopup === "function") {
           const tab = await chrome.tabs.get(tabId);
