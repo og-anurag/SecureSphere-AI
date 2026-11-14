@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+import requests
 import ipaddress
 import re
 from urllib.parse import urlparse
@@ -183,7 +185,69 @@ def _has_hexadecimal_ip(hostname: str | None) -> bool:
         re.fullmatch(r"0x[0-9a-f]+", hostname)
         or re.fullmatch(r"[0-9a-f]{8,}", hostname)
     )
+# ---------------------------------------------------------
+# Domain age (via public RDAP)
+# ---------------------------------------------------------
 
+_DOMAIN_AGE_CACHE: dict[str, int] = {}
+
+
+def _registrable_domain(hostname: str) -> str | None:
+    """Rough registrable domain. Handles common endings like .co.in."""
+    parts = hostname.lower().strip(".").split(".")
+
+    if len(parts) < 2:
+        return None
+
+    if (
+        len(parts) >= 3
+        and len(parts[-1]) == 2
+        and parts[-2] in ("co", "com", "org", "net", "gov", "ac", "edu")
+    ):
+        return ".".join(parts[-3:])
+
+    return ".".join(parts[-2:])
+
+
+def _get_domain_age_days(domain: str) -> int | None:
+    """Return the domain's age in days, or None if unknown. Never raises."""
+    if domain in _DOMAIN_AGE_CACHE:
+        return _DOMAIN_AGE_CACHE[domain]
+
+    try:
+        response = requests.get(
+            f"https://rdap.org/domain/{domain}",
+            headers={"Accept": "application/rdap+json"},
+            timeout=3,
+        )
+
+        if response.status_code != 200:
+            return None
+
+        for event in response.json().get("events", []):
+            if event.get("eventAction") == "registration":
+                registered = datetime.fromisoformat(
+                    event["eventDate"].replace("Z", "+00:00")
+                )
+
+                if registered.tzinfo is None:
+                    registered = registered.replace(tzinfo=timezone.utc)
+
+                age = max(
+                    (datetime.now(timezone.utc) - registered).days,
+                    0,
+                )
+
+                if len(_DOMAIN_AGE_CACHE) >= 1000:
+                    _DOMAIN_AGE_CACHE.clear()
+
+                _DOMAIN_AGE_CACHE[domain] = age
+                return age
+
+    except (requests.RequestException, ValueError, KeyError, TypeError):
+        return None
+
+    return None
 
 # ---------------------------------------------------------
 # Main URL scanner
@@ -423,7 +487,27 @@ def check_url(url: str):
         reasons.append(
             "URL contains query parameters"
         )
+    # -----------------------------------------------------
+    # Domain age
+    # -----------------------------------------------------
 
+    if hostname and not features["uses_ip_address"]:
+        domain = _registrable_domain(hostname)
+        age_days = _get_domain_age_days(domain) if domain else None
+
+        features["domain_age_days"] = age_days
+
+        if age_days is not None:
+            if age_days < 30:
+                score += 20
+                reasons.append(
+                    f"Domain was registered only {age_days} days ago"
+                )
+            elif age_days < 90:
+                score += 10
+                reasons.append(
+                    f"Domain is fairly new ({age_days} days old)"
+                )
     # -----------------------------------------------------
     # Google Safe Browsing
     # -----------------------------------------------------
