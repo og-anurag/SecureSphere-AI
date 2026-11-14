@@ -120,6 +120,9 @@ async function scanUrl(url, tabId) {
   );
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {
@@ -128,9 +131,9 @@ async function scanUrl(url, tabId) {
       body: JSON.stringify({
         input: url,
         session_id: "browser-background"
-      })
+      }),
+      signal: controller.signal
     });
-
     if (!response.ok) {
       throw new Error(
         `Backend returned ${response.status}`
@@ -139,6 +142,8 @@ async function scanUrl(url, tabId) {
 
     const result =
       await response.json();
+
+    clearTimeout(timeoutId);
 
     console.log(
       "SecureSphere scan result:",
