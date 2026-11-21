@@ -44,3 +44,26 @@ class ScanHistory(Base):
     reasons = Column(Text, nullable=True)  # JSON-encoded list of reason strings
 
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    
+
+class ScanFeedback(Base):
+    __tablename__ = "scan_feedback"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    # Hostname only. Never store paths, queries, or full URLs here.
+    hostname = Column(String(255), nullable=False, index=True)
+
+    shown_risk = Column(String(20), nullable=False)
+    shown_score = Column(Integer, nullable=False)
+
+    # false_positive = user says the site is safe
+    # false_negative = user says the site is dangerous
+    label = Column(String(20), nullable=False)
+
+    created_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        index=True,
+    )

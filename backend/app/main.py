@@ -14,6 +14,7 @@ from app.routes import (
     history,
     home,
     agent_scan,
+    feedback,
 )
 
 
@@ -57,6 +58,7 @@ app.include_router(payment_scan.router)
 app.include_router(qr_scan.router)
 app.include_router(auth.router)
 app.include_router(history.router)
+app.include_router(feedback.router)
 app.include_router(
     agent_scan.router,
     prefix="/agent",
